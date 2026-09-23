@@ -4,7 +4,6 @@ import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { processInvoicesCsv } from '../../lib/csvParser';
 import { useToast } from '../../contexts/ToastContext';
 import { api, triggerUpdate } from '../../lib/api';
-import FocusLock from 'react-focus-lock';
 
 type TabType = 'csv' | 'manual';
 
@@ -83,8 +82,7 @@ export const CsvUploadModal = () => {
   const close = () => { if (!isUploading && !isSaving) setIsOpen(false); };
 
   return (
-    <FocusLock>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modal-title">
         <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={close}></div>
         <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg relative z-10 overflow-hidden animate-[fadeIn_0.2s_ease-out]">
           <div className="flex justify-between items-center p-6 border-b border-gray-100">
@@ -184,6 +182,5 @@ export const CsvUploadModal = () => {
           </div>
         </div>
       </div>
-    </FocusLock>
   );
 };

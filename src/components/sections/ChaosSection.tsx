@@ -4,7 +4,7 @@ import { useScrollReveal } from '../../hooks/useScrollReveal';
 export const ChaosSection = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const cardsRef = useRef<(HTMLDivElement | null)[]>([]);
-  const { ref, isVisible } = useScrollReveal(0.1);
+  const { ref } = useScrollReveal(0.1);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -52,7 +52,7 @@ export const ChaosSection = () => {
             Payment <br/><span className="text-gray-300 text-stroke">Nowhere.</span>
           </h2>
           <p className="text-lg md:text-xl text-gray-600 max-w-md font-medium">
-            Without a system, overdue invoices pile up. You're too busy doing great work to chase payments — and that's exactly why they slip through.
+            Without a system, overdue invoices pile up. You&apos;re too busy doing great work to chase payments — and that&apos;s exactly why they slip through.
           </p>
         </div>
 

@@ -94,7 +94,7 @@ export const Pricing = () => {
 
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
-  const handleCheckout = async (tier: any) => {
+  const handleCheckout = async (tier: { name: string }) => {
     if (!activeWorkspace) {
       addToast("Please log in or create an account to upgrade.", "warning");
       router.push('/signup');
@@ -115,9 +115,9 @@ export const Pricing = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ planCode, interval, workspaceId: activeWorkspace.id }),
       });
-      const data = await response.json();
+      const data = await response.json() as { checkoutUrl?: string; error?: string };
       if (response.ok && data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
+        window.location.assign(data.checkoutUrl);
       } else {
         addToast(data.error || `Navigating to billing settings for ${tier.name}...`, "warning");
         router.push('/app/settings?tab=billing');

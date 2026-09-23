@@ -15,10 +15,10 @@ export const SmartDeclineSection = () => {
           </div>
           <h2 className="font-heading text-fluid-2 leading-[0.9] tracking-tighter text-gray-900">
             Payments fail. <br/>
-            <span className="text-gray-300 text-stroke">Recovery shouldn't.</span>
+            <span className="text-gray-300 text-stroke">Recovery shouldn&apos;t.</span>
           </h2>
           <p className="text-lg md:text-xl text-gray-600 font-medium mt-6 md:mt-8 max-w-2xl">
-            If a client's card fails, Astrix instantly recognizes soft vs. hard declines and automatically sends a polite "Fix your card" link without you lifting a finger.
+            If a client&apos;s card fails, Astrix instantly recognizes soft vs. hard declines and automatically sends a polite &quot;Fix your card&quot; link without you lifting a finger.
           </p>
         </div>
 

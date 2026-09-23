@@ -31,7 +31,7 @@ export const TermsOfService = () => {
 
           <h2 className="font-heading text-2xl font-bold text-gray-900 mt-12 mb-4">1. Acceptance of Terms</h2>
           <p className="mb-8">
-            By creating an account, accessing, or using the Astrix AI platform ("Service"), you agree to comply with and be bound by these Terms. If you do not agree to these Terms, you may not use the Service.
+            By creating an account, accessing, or using the Astrix AI platform (&quot;Service&quot;), you agree to comply with and be bound by these Terms. If you do not agree to these Terms, you may not use the Service.
           </p>
 
           <h2 className="font-heading text-2xl font-bold text-gray-900 mt-12 mb-4">2. Description of Service</h2>
@@ -92,7 +92,7 @@ export const TermsOfService = () => {
 
           <h2 className="font-heading text-2xl font-bold text-gray-900 mt-12 mb-4">8. Disclaimer of Warranties</h2>
           <p className="mb-8">
-            Astrix AI is provided "as is" without warranties of any kind. We do not guarantee that you will recover any specific amount of overdue invoices. Payment recovery depends on many factors outside our control, including client responsiveness and payment gateway functionality.
+            Astrix AI is provided &quot;as is&quot; without warranties of any kind. We do not guarantee that you will recover any specific amount of overdue invoices. Payment recovery depends on many factors outside our control, including client responsiveness and payment gateway functionality.
           </p>
 
           <h2 className="font-heading text-2xl font-bold text-gray-900 mt-12 mb-4">9. Limitation of Liability</h2>

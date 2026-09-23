@@ -17,14 +17,14 @@ interface GatewayOption {
 }
 
 const GATEWAYS: GatewayOption[] = [
-  { type: 'stripe', label: 'Stripe', icon: CreditCard, placeholder: 'sk_live_... or sk_test_...', hint: 'API key from Stripe Dashboard ? Developers ? API Keys' },
-  { type: 'razorpay', label: 'Razorpay', icon: Zap, placeholder: 'rzp_live_... or rzp_test_...', hint: 'API key from Razorpay Dashboard ? Settings ? API Keys' },
+  { type: 'stripe', label: 'Stripe', icon: CreditCard, placeholder: 'sk_live_... or sk_test_...', hint: 'API key from Stripe Dashboard -> Developers -> API Keys' },
+  { type: 'razorpay', label: 'Razorpay', icon: Zap, placeholder: 'rzp_live_... or rzp_test_...', hint: 'API key from Razorpay Dashboard -> Settings -> API Keys' },
   { type: 'upi', label: 'UPI / Static Link', icon: LinkIcon, placeholder: 'https://pay.example.com/you or upi://pay?pa=...', hint: 'Paste any payment link, UPI deeplink, or hosted checkout URL' },
 ];
 
 export const Step1Gateway = () => {
   const router = useRouter();
-  const { activeWorkspace, updateWorkspaceName } = useWorkspace();
+  const { activeWorkspace } = useWorkspace();
   const [selectedGateway, setSelectedGateway] = useState<GatewayType | null>(null);
   const [apiKey, setApiKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -85,7 +85,7 @@ export const Step1Gateway = () => {
           </p>
           <button onClick={handleContinue}
             className="w-full bg-brand-blue text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-glow-blue text-base">
-            Continue to Tone Setup ?
+            Continue to Tone Setup &rarr;
           </button>
         </div>
       ) : (
@@ -125,7 +125,7 @@ export const Step1Gateway = () => {
 
           <div className="text-center">
             <button onClick={handleSkip} className="text-sm text-gray-400 hover:text-gray-700 font-medium transition-colors">
-              Skip for now � I'll connect later in Settings
+              Skip for now &mdash; I&apos;ll connect later in Settings
             </button>
           </div>
         </div>

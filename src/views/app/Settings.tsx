@@ -308,7 +308,7 @@ export const Settings = () => {
                   {/* White-Label Domain */}
                   <div>
                     <h3 className="text-sm font-bold text-gray-900 mb-3">White-Label Custom Sending Domain</h3>
-                    <p className="text-xs text-gray-500 mb-3">Serve payment links and send reminder emails directly from your agency's domain (e.g. reminders@youragency.com).</p>
+                    <p className="text-xs text-gray-500 mb-3">Serve payment links and send reminder emails directly from your agency&apos;s domain (e.g. reminders@youragency.com).</p>
                     <div className="flex gap-3">
                       <input type="text" placeholder="e.g. reminders.youragency.com" className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-brand-blue/20" />
                       <button onClick={() => addToast("Custom domain verification initiated.", "success")} className="bg-gray-900 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-gray-800 transition-colors">Verify Domain</button>

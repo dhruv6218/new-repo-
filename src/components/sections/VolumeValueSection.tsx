@@ -20,7 +20,7 @@ export const VolumeValueSection = () => {
             <span className="text-gray-300 text-stroke">Not a Bot.</span>
           </h2>
           <p className="text-lg md:text-xl text-gray-600 font-medium mb-6 md:mb-8">
-            Generic payment reminders feel cold and get ignored. Astrix clones your actual writing style — friendly, firm, or somewhere in between — so clients respond like it's you.
+            Generic payment reminders feel cold and get ignored. Astrix clones your actual writing style — friendly, firm, or somewhere in between — so clients respond like it&apos;s you.
           </p>
           <p className="text-lg md:text-xl text-gray-900 font-bold">
             Plus, every reminder includes a 1-click checkout link for instant payment.

@@ -88,7 +88,6 @@ export const initializeWorkspace = (workspaceId: string) => {
 
   const now = new Date();
   const daysAgo = (d: number) => new Date(now.getTime() - d * 86400000).toISOString().split('T')[0];
-  const isoDaysAgo = (d: number) => new Date(now.getTime() - d * 86400000).toISOString();
 
   const sampleInvoices: Invoice[] = [
     { id: genId(), workspace_id: workspaceId, client_name: 'Acme Corp', client_email: 'billing@acme.com', amount: 2400, currency: 'USD', due_date: daysAgo(14), status: 'pending', ai_status: 'nudge_sent', last_chased_at: daysAgo(4), reminder_count: 2, days_overdue: 14, created_at: daysAgo(20) },

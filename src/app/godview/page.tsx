@@ -1,3 +1,3 @@
 'use client';
-import { AdminRoute } from '../../views/admin/AdminRoute';
-export default AdminRoute;
+import { AdminLogin } from '../../views/admin/AdminLogin';
+export default AdminLogin;

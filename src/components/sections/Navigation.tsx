@@ -1,30 +1,29 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Menu, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { MagneticButton } from '../ui/MagneticButton';
-import { InstallPrompt } from '../InstallPrompt';
 
 export const Navigation = () => {
   const [scrolled, setScrolled] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
-  let lastScrollY = 0;
+  const lastScrollY = useRef(0);
 
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       setScrolled(currentScrollY > 50);
       
-      if (currentScrollY > lastScrollY && currentScrollY > 100 && !mobileMenuOpen) {
+      if (currentScrollY > lastScrollY.current && currentScrollY > 100 && !mobileMenuOpen) {
         setHidden(true);
       } else {
         setHidden(false);
       }
-      lastScrollY = currentScrollY;
+      lastScrollY.current = currentScrollY;
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
@@ -37,10 +36,6 @@ export const Navigation = () => {
       document.body.style.overflow = 'unset';
     }
   }, [mobileMenuOpen]);
-
-  useEffect(() => {
-    setMobileMenuOpen(false);
-  }, [pathname]);
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, path: string) => {
     if (path.startsWith('/#') && pathname === '/') {
@@ -95,7 +90,6 @@ export const Navigation = () => {
           {/* Desktop CTA & Mobile Toggle */}
           <div className="flex items-center gap-4 relative z-[70]">
             <div className="hidden md:flex items-center gap-4">
-              <InstallPrompt />
               <Link href="/login" className="text-sm font-bold text-gray-600 hover:text-gray-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue rounded-md px-2 py-1">
                 Log in
               </Link>
@@ -135,7 +129,6 @@ export const Navigation = () => {
           ))}
           
           <div className={`mt-8 transition-all duration-500 delay-300 flex flex-col gap-4 ${mobileMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-            <InstallPrompt />
             <Link href="/signup" className="w-full bg-brand-blue text-white px-6 py-4 rounded-full text-lg font-bold shadow-glow-blue text-center focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-blue focus-visible:ring-offset-2">
               Start Free
             </Link>

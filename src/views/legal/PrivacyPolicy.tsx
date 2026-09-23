@@ -63,7 +63,7 @@ export const PrivacyPolicy = () => {
           <ul className="list-disc pl-6 space-y-2 mb-8">
             <li>API keys are encrypted using industry-standard AES-256 encryption.</li>
             <li>We never store full banking credentials or passwords.</li>
-            <li>Payment processing happens directly through your connected gateway — we never touch or hold your clients' payment data.</li>
+            <li>Payment processing happens directly through your connected gateway — we never touch or hold your clients&apos; payment data.</li>
             <li>You can revoke gateway access at any time from Settings.</li>
           </ul>
 
@@ -81,7 +81,7 @@ export const PrivacyPolicy = () => {
           </p>
           <ul className="list-disc pl-6 space-y-2 mb-8">
             <li>Emails are sent from your connected email or our sending domain (if on Agency plan with white-label).</li>
-            <li>Clients can opt out of further reminders by clicking "Already Paid" or replying to the email.</li>
+            <li>Clients can opt out of further reminders by clicking &quot;Already Paid&quot; or replying to the email.</li>
             <li>We include an unsubscribe link in every reminder email as required by CAN-SPAM and GDPR regulations.</li>
           </ul>
 

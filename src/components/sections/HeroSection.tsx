@@ -35,7 +35,7 @@ export const HeroSection = () => {
             </span>
             <span className="block overflow-hidden pb-2 sm:pb-4">
               <span className={`block text-brand-blue transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] delay-75 ${isVisible ? 'translate-y-0' : 'translate-y-[120%]'}`}>
-                work you've
+                work you&apos;ve
               </span>
             </span>
             <span className="block overflow-hidden pb-2 sm:pb-4">
