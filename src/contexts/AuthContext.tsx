@@ -162,11 +162,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error: error ? errorMessage(error) : null, needsConfirmation: !error };
   };
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (targetNext = '/app') => {
     if (!supabase) return { error: 'Authentication is not configured. Please set the Supabase environment variables.' };
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${origin()}/auth/confirm?next=/app` },
+      options: { redirectTo: `${origin()}/auth/confirm?next=${encodeURIComponent(targetNext)}` },
     });
     return { error: error ? errorMessage(error) : null };
   };
