@@ -60,30 +60,44 @@ const fallbackBody = (invoice: Invoice, tone: string) =>
   `Hi ${invoice.client_name},\n\nThis is a ${tone} reminder that invoice ${invoice.invoice_number} is still outstanding. Please let us know if you need anything from us to complete payment.\n\nThank you.`;
 
 async function generateBody(invoice: Invoice, tone: ToneSettings | null) {
-  const apiKey = Deno.env.get("OPENAI_API_KEY");
-  if (!apiKey) return fallbackBody(invoice, tone?.tone ?? "professional");
-
+  const prompt = `Write a concise ${tone?.tone ?? "professional"} payment reminder for ${invoice.client_name} about invoice ${invoice.invoice_number}. Do not invent dates, amounts, links, or threats. Return only the email body.`;
+  const geminiKey = Deno.env.get("GEMINI_API_KEY");
+  if (geminiKey) {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${Deno.env.get("GEMINI_MODEL") ?? "gemini-2.0-flash"}:generateContent?key=${encodeURIComponent(geminiKey)}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 300 } }),
+    });
+    if (response.ok) {
+      const data = await response.json();
+      const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (typeof content === "string" && content.trim()) return content.trim();
+    } else console.error("Gemini request failed with", response.status);
+  }
+  const nvidiaKey = Deno.env.get("NVIDIA_API_KEY");
+  if (nvidiaKey) {
+    const response = await fetch(Deno.env.get("NVIDIA_BASE_URL") ?? "https://integrate.api.nvidia.com/v1/chat/completions", {
+      method: "POST",
+      headers: { authorization: `Bearer ${nvidiaKey}`, "content-type": "application/json" },
+      body: JSON.stringify({ model: Deno.env.get("NVIDIA_MODEL") ?? "meta/llama-3.1-8b-instruct", temperature: 0.2, max_tokens: 300, messages: [{ role: "user", content: prompt }] }),
+    });
+    if (response.ok) {
+      const data = await response.json();
+      const content = data?.choices?.[0]?.message?.content;
+      if (typeof content === "string" && content.trim()) return content.trim();
+    } else console.error("NVIDIA request failed with", response.status);
+  }
+  const openAiKey = Deno.env.get("OPENAI_API_KEY");
+  if (!openAiKey) return fallbackBody(invoice, tone?.tone ?? "professional");
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
-    headers: {
-      authorization: `Bearer ${apiKey}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model: Deno.env.get("OPENAI_MODEL") ?? "gpt-4o-mini",
-      temperature: 0.2,
-      messages: [{
-        role: "user",
-        content: `Write a concise ${tone?.tone ?? "professional"} payment reminder for ${invoice.client_name} about invoice ${invoice.invoice_number}. Do not invent dates, amounts, links, or threats. Return only the email body.`,
-      }],
-    }),
+    headers: { authorization: `Bearer ${openAiKey}`, "content-type": "application/json" },
+    body: JSON.stringify({ model: Deno.env.get("OPENAI_MODEL") ?? "gpt-4o-mini", temperature: 0.2, messages: [{ role: "user", content: prompt }] }),
   });
   if (!response.ok) throw new Error(`OpenAI request failed with ${response.status}`);
   const data = await response.json();
   const content = data?.choices?.[0]?.message?.content;
-  if (typeof content !== "string" || !content.trim()) {
-    throw new Error("OpenAI returned an empty reminder");
-  }
+  if (typeof content !== "string" || !content.trim()) throw new Error("OpenAI returned an empty reminder");
   return content.trim();
 }
 
