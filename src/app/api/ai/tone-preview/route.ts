@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '../../../../lib/supabase/server';
+import { rateLimit } from '../../../../lib/server/rate-limit';
 
 const toneLabels = {
   1: 'friendly, warm, and conversational',
@@ -8,6 +9,9 @@ const toneLabels = {
 } as const;
 
 export async function POST(request: Request) {
+  if (!rateLimit(request, 'ai-tone-preview', 20, 60_000)) {
+    return NextResponse.json({ error: 'Too many requests. Try again shortly.' }, { status: 429 });
+  }
   let body: { workspaceId?: unknown; sampleEmails?: unknown; toneLevel?: unknown };
   try {
     body = await request.json();

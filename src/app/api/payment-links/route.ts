@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { providerConfig, savePaymentLink } from '../../../lib/server/payments';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
+import { rateLimit } from '../../../lib/server/rate-limit';
 
 type LinkRequest = {
   provider?: 'stripe' | 'razorpay';
@@ -11,9 +12,20 @@ type LinkRequest = {
 };
 
 export async function POST(request: Request) {
-  const input = await request.json() as LinkRequest;
-  if (!input.provider || !input.invoice_id) {
+  if (!rateLimit(request, 'payment-links', 10, 60_000)) {
+    return NextResponse.json({ error: 'Too many requests. Try again shortly.' }, { status: 429 });
+  }
+  let input: LinkRequest;
+  try {
+    input = await request.json() as LinkRequest;
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
+  if (!['stripe', 'razorpay'].includes(input.provider ?? '') || !input.invoice_id) {
     return NextResponse.json({ error: 'provider and invoice_id are required' }, { status: 400 });
+  }
+  if (input.description !== undefined && (typeof input.description !== 'string' || input.description.length > 200)) {
+    return NextResponse.json({ error: 'Invalid description' }, { status: 400 });
   }
   if (!/^[0-9a-f-]{36}$/i.test(input.invoice_id)) return NextResponse.json({ error: 'Invalid invoice id' }, { status: 400 });
   const supabase = await createSupabaseServerClient();

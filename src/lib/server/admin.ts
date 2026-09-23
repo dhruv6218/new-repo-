@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { createSupabaseServerClient } from '../supabase/server';
 import type { Database } from '../supabase/database.types';
+export { adminErrorStatus } from './auth-boundaries';
 
 export async function requireAdmin() {
   const supabase = await createSupabaseServerClient();

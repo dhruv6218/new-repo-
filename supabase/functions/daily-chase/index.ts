@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { isReminderEligible } from "./eligibility.ts";
 
 type Invoice = {
   id: string;
@@ -192,7 +193,7 @@ Deno.serve(async (request: Request) => {
     const invoices = (await response.json()) as Invoice[];
     const results = [];
     for (const invoice of invoices) {
-      if (!invoice.due_at) continue;
+      if (!isReminderEligible(invoice, now, intervalDays())) continue;
       const kind = reminderKind(invoice.due_at, now);
       if (demo) {
         results.push({ invoice_id: invoice.id, kind, action: "preview" });

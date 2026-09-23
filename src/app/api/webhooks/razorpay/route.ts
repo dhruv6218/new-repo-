@@ -6,8 +6,12 @@ import {
   providerConfig,
   verifyRazorpaySignature,
 } from '../../../../lib/server/payments';
+import { rateLimit } from '../../../../lib/server/rate-limit';
 
 export async function POST(request: NextRequest) {
+  if (!rateLimit(request, 'razorpay-webhook', 120, 60_000)) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
   const config = providerConfig('razorpay');
   if (!config.webhookSecret) return NextResponse.json({ error: 'Razorpay webhook is not configured' }, { status: 503 });
 
@@ -16,13 +20,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid webhook signature' }, { status: 400 });
   }
 
-  const event = JSON.parse(body) as {
+  let event: {
     event?: string;
     payload?: {
       payment?: { entity?: { id?: string; notes?: { invoice_id?: string } } };
       payment_link?: { entity?: { id?: string; notes?: { invoice_id?: string } } };
     };
   };
+  try {
+    event = JSON.parse(body);
+  } catch {
+    return NextResponse.json({ error: 'Invalid webhook body' }, { status: 400 });
+  }
   const eventId = request.headers.get('x-razorpay-event-id') ?? `${event.event}:${body}`;
   const claimed = await claimWebhookEvent('razorpay', eventId, event);
   if (!claimed) return NextResponse.json({ received: true, duplicate: true });

@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
-import { createAdminClient, requireAdmin } from '../../../../lib/server/admin';
+import { adminErrorStatus, createAdminClient, requireAdmin } from '../../../../lib/server/admin';
+import { rateLimit } from '../../../../lib/server/rate-limit';
 
-export async function GET() {
+export async function GET(request: Request) {
+  if (!rateLimit(request, 'admin-users-read', 30, 60_000)) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
   const result = await requireAdmin();
-  if (result.error) return NextResponse.json({ error: result.error }, { status: result.error === 'Authentication required' ? 401 : 403 });
+  if (result.error) return NextResponse.json({ error: result.error }, { status: adminErrorStatus(result.error) });
 
   try {
     const admin = createAdminClient();
@@ -28,8 +32,11 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
+  if (!rateLimit(request, 'admin-users-write', 10, 60_000)) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
   const result = await requireAdmin();
-  if (result.error) return NextResponse.json({ error: result.error }, { status: result.error === 'Authentication required' ? 401 : 403 });
+  if (result.error) return NextResponse.json({ error: result.error }, { status: adminErrorStatus(result.error) });
   let body: { id?: unknown; status?: unknown };
   try {
     body = await request.json();
