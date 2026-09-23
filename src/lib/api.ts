@@ -12,8 +12,6 @@ const KEYS = {
   GATEWAYS: 'astrix_gateways',
   TONE: 'astrix_tone_settings',
   ACTIVITY: 'astrix_activity',
-  WORKSPACE: 'astrix_demo_workspace',
-  ADMIN_USERS: 'astrix_admin_users',
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -119,7 +117,7 @@ export const initializeWorkspace = (workspaceId: string) => {
     { id: genId(), email: 'raj@indie.dev', full_name: 'Raj Patel', plan: 'Hook', credits_used: 3, status: 'active', created_at: daysAgo(10), invoice_count: 3, total_recovered: 4200 },
     { id: genId(), email: 'anna@studio.com', full_name: 'Anna Mueller', plan: 'Solo', credits_used: 0, status: 'suspended', created_at: daysAgo(60), invoice_count: 0, total_recovered: 0 },
   ];
-  setStorage(KEYS.ADMIN_USERS, sampleAdminUsers);
+  setStorage('astrix_admin_users', sampleAdminUsers);
 };
 
 // ─── Invoice API ──────────────────────────────────────────────────────────────
@@ -215,7 +213,7 @@ export const api = {
           workspace_id: data.workspace_id,
           provider,
           account_label: data.label,
-          encrypted_secret_ref: 'pending-server-connection',
+          encrypted_secret_ref: null,   // real key stored via /api/gateways/connect after OAuth / key entry
           secret_metadata: metadata,
           is_active: data.is_active,
         }, { onConflict: 'workspace_id,provider,external_account_id' }).select('*').single();
@@ -402,9 +400,6 @@ export const api = {
     updateUser: async (id: string, data: Partial<AdminUser>): Promise<void> => {
       const response = await fetch('/api/admin/users', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status: data.status }) });
       if (!response.ok) throw new Error((await response.json() as { error?: string }).error || 'Could not update user');
-    },
-    addCredits: async (id: string, credits: number): Promise<void> => {
-      throw new Error(`Credits are not available in the production admin API (${id}, ${credits})`);
     },
   },
 };

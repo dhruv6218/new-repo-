@@ -2,13 +2,13 @@
 -- remote project until the application rollout is ready.
 create extension if not exists pgcrypto;
 
-create type public.workspace_role as enum ('owner', 'admin', 'member', 'viewer');
-create type public.subscription_status as enum ('trialing', 'active', 'past_due', 'canceled', 'paused');
-create type public.invoice_status as enum ('draft', 'pending', 'paid', 'paused', 'disputed', 'void', 'uncollectible');
-create type public.payment_link_status as enum ('active', 'expired', 'used', 'disabled');
-create type public.reminder_kind as enum ('upcoming', 'due', 'overdue', 'final');
-create type public.gateway_provider as enum ('stripe', 'razorpay', 'paypal', 'dodo', 'other');
-create type public.invoice_ai_status as enum ('pending', 'nudge_sent', 'escalated', 'paid');
+do $$ begin create type public.workspace_role as enum ('owner', 'admin', 'member', 'viewer'); exception when duplicate_object then null; end $$;
+do $$ begin create type public.subscription_status as enum ('trialing', 'active', 'past_due', 'canceled', 'paused'); exception when duplicate_object then null; end $$;
+do $$ begin create type public.invoice_status as enum ('draft', 'pending', 'paid', 'paused', 'disputed', 'void', 'uncollectible'); exception when duplicate_object then null; end $$;
+do $$ begin create type public.payment_link_status as enum ('active', 'expired', 'used', 'disabled'); exception when duplicate_object then null; end $$;
+do $$ begin create type public.reminder_kind as enum ('upcoming', 'due', 'overdue', 'final'); exception when duplicate_object then null; end $$;
+do $$ begin create type public.gateway_provider as enum ('stripe', 'razorpay', 'paypal', 'dodo', 'other'); exception when duplicate_object then null; end $$;
+do $$ begin create type public.invoice_ai_status as enum ('pending', 'nudge_sent', 'escalated', 'paid'); exception when duplicate_object then null; end $$;
 
 create or replace function public.set_updated_at()
 returns trigger language plpgsql set search_path = public as $$

@@ -117,6 +117,10 @@ begin
     if to_regclass(format('public.%I', table_name)) is not null then
       execute format('alter table public.%I enable row level security', table_name);
       execute format('drop policy if exists %I on public.%I', table_name || '_member_access', table_name);
+      execute format('drop policy if exists %I on public.%I', table_name || '_member_select', table_name);
+      execute format('drop policy if exists %I on public.%I', table_name || '_editor_insert', table_name);
+      execute format('drop policy if exists %I on public.%I', table_name || '_editor_update', table_name);
+      execute format('drop policy if exists %I on public.%I', table_name || '_editor_delete', table_name);
       execute format(
         'create policy %I on public.%I for select using (public.is_workspace_member(workspace_id))',
         table_name || '_member_select', table_name
@@ -155,6 +159,8 @@ create policy audit_logs_member_read on public.audit_logs
   for select using (workspace_id is not null and public.is_workspace_member(workspace_id));
 
 alter table public.notification_events enable row level security;
+drop policy if exists notification_events_self_read on public.notification_events;
+drop policy if exists notification_events_self_update on public.notification_events;
 create policy notification_events_self_read on public.notification_events
   for select using (
     user_id = (select auth.uid()) and public.is_workspace_member(workspace_id)

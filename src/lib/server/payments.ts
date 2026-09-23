@@ -1,7 +1,5 @@
 import crypto from 'node:crypto';
-
-const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+import { createAdminClient } from './admin';
 
 export type PaymentProvider = 'stripe' | 'razorpay' | 'dodo';
 
@@ -31,51 +29,33 @@ function timingSafeEqual(expected: string, actual: string): boolean {
   return expectedBuffer.length === actualBuffer.length && crypto.timingSafeEqual(expectedBuffer, actualBuffer);
 }
 
-function requireSupabase(): { url: string; key: string } {
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error('Payment persistence is not configured: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
-  }
-  return { url: SUPABASE_URL.replace(/\/$/, ''), key: SUPABASE_SERVICE_ROLE_KEY };
-}
-
-async function supabaseRequest(path: string, init: RequestInit): Promise<Response> {
-  const { url, key } = requireSupabase();
-  return fetch(`${url}/rest/v1/${path}`, {
-    ...init,
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      'Content-Type': 'application/json',
-      ...(init.headers ?? {}),
-    },
-  });
-}
-
 export async function claimWebhookEvent(
   provider: PaymentProvider,
   eventId: string,
   payload: unknown,
   signatureValid = true,
 ): Promise<boolean> {
-  const response = await supabaseRequest('gateway_webhook_events', {
-    method: 'POST',
-    headers: { Prefer: 'resolution=ignore-duplicates,return=representation' },
-    body: JSON.stringify({ provider, provider_event_id: eventId, signature_valid: signatureValid, payload }),
-  });
-  if (!response.ok) throw new Error(`Unable to persist webhook event (${response.status})`);
-  return (await response.json() as unknown[]).length > 0;
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from('gateway_webhook_events')
+    .insert({ provider, provider_event_id: eventId, signature_valid: signatureValid, payload })
+    .select('id');
+  // Duplicate key = already processed; any other error = rethrow
+  if (error) {
+    if (error.code === '23505') return false; // unique constraint → duplicate
+    throw new Error(`Unable to persist webhook event: ${error.message}`);
+  }
+  return (data?.length ?? 0) > 0;
 }
 
-export async function markInvoicePaid(invoiceId: string, provider: PaymentProvider, externalId: string): Promise<void> {
-  const response = await supabaseRequest(
-    `invoices?id=eq.${encodeURIComponent(invoiceId)}&status=neq.paid`,
-    {
-      method: 'PATCH',
-      headers: { Prefer: 'return=minimal' },
-      body: JSON.stringify({ status: 'paid', paid_provider: provider, paid_external_id: externalId, paid_at: new Date().toISOString() }),
-    },
-  );
-  if (!response.ok) throw new Error(`Unable to update invoice (${response.status})`);
+export async function markInvoicePaid(invoiceId: string, _provider: PaymentProvider, _externalId: string): Promise<void> {
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from('invoices')
+    .update({ status: 'paid', paid_at: new Date().toISOString() })
+    .eq('id', invoiceId)
+    .neq('status', 'paid');
+  if (error) throw new Error(`Unable to update invoice: ${error.message}`);
 }
 
 export async function savePaymentLink(input: {
@@ -86,20 +66,18 @@ export async function savePaymentLink(input: {
   amount: number;
   currency: string;
 }): Promise<void> {
-  const response = await supabaseRequest('invoice_payment_links', {
-    method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-    body: JSON.stringify({
-      invoice_id: input.invoiceId,
-      provider: input.provider,
-      external_id: input.externalId,
-      url: input.url,
-      amount: input.amount,
-      currency: input.currency.toUpperCase(),
-      status: 'active',
-    }),
-  });
-  if (!response.ok) throw new Error(`Unable to persist payment link (${response.status})`);
+  const admin = createAdminClient();
+  // Get workspace_id from invoice for RLS-safe insert
+  const { data: invoice } = await admin.from('invoices').select('workspace_id').eq('id', input.invoiceId).single();
+  if (!invoice) throw new Error('Invoice not found when saving payment link');
+  const tokenHash = crypto.createHash('sha256').update(`${input.invoiceId}:${input.externalId}`).digest('hex');
+  const { error } = await admin.from('invoice_payment_links').upsert({
+    workspace_id: invoice.workspace_id,
+    invoice_id: input.invoiceId,
+    token_hash: tokenHash,
+    status: 'active',
+  }, { onConflict: 'token_hash' });
+  if (error) throw new Error(`Unable to persist payment link: ${error.message}`);
 }
 
 export function providerConfig(provider: PaymentProvider) {

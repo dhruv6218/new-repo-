@@ -42,7 +42,7 @@ type Invoice = {
     status?: Invoice['Row']['status']; ai_status?: Invoice['Row']['ai_status']; currency?: string;
     subtotal_minor?: number; tax_minor?: number; total_minor: number; due_at?: string | null;
   };
-  Update: Partial<Invoice['Insert']> & { paused_at?: string | null; disputed_at?: string | null };
+  Update: Partial<Invoice['Insert']> & { paused_at?: string | null; disputed_at?: string | null; paid_at?: string | null };
   Relationships: [];
 };
 

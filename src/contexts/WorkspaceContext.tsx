@@ -30,9 +30,6 @@ const DEFAULT_MOCK_WORKSPACE: Workspace = {
 
 const isDemo = () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('demo') === 'true';
 const slugify = (value: string) => value.toLowerCase().normalize('NFKD').replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'workspace';
-const mapWorkspace = (row: { id: string; name: string; slug: string; created_at: string }, timezone: string): Workspace => ({
-  id: row.id, name: row.name, slug: row.slug, timezone, logo_url: null, plan: 'Hook', created_at: row.created_at,
-});
 
 export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isInitializing: isAuthInitializing } = useAuth();
@@ -80,10 +77,21 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           workspaceIds = retry.data.map(member => member.workspace_id);
         } else workspaceIds = [created.id];
       }
-      const { data: rows, error } = await supabase.from('workspaces').select('id,name,slug,created_at').in('id', workspaceIds);
+      const { data: rows, error } = await supabase
+        .from('workspaces')
+        .select('id,name,slug,created_at,subscriptions(status,plans(name))')
+        .in('id', workspaceIds);
       if (error) throw error;
       const timezone = profile?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-      const mapped = (rows ?? []).map(row => mapWorkspace(row, timezone));
+      type WsRow = {
+        id: string; name: string; slug: string; created_at: string;
+        subscriptions?: Array<{ status: string; plans?: { name: string } | null }> | null;
+      };
+      const mapped = ((rows ?? []) as WsRow[]).map(row => {
+        const activeSub = row.subscriptions?.find(s => s.status === 'active' || s.status === 'trialing');
+        const planName = activeSub?.plans?.name ?? 'Hook';
+        return { id: row.id, name: row.name, slug: row.slug, timezone, logo_url: null, plan: planName, created_at: row.created_at } as Workspace;
+      });
       setWorkspaces(mapped); setActiveWs(mapped[0] ?? null);
     } catch (error) {
       setWorkspaces([]); setActiveWs(null);

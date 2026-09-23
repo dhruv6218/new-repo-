@@ -14,6 +14,12 @@ import { api } from '../../lib/api';
 import type { ActivityItem, DashboardMetrics } from '../../types';
 import { Skeleton } from '../../components/ui/Skeleton';
 
+const formatCurrency = (value: number, currency = 'USD') => {
+  if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+  if (value >= 1000) return `$${(value / 1000).toFixed(1)}k`;
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value);
+};
+
 export const Dashboard = () => {
   const { user } = useAuth();
   const { activeWorkspace, isWorkspaceInitializing } = useWorkspace();
@@ -63,11 +69,6 @@ export const Dashboard = () => {
     return () => { cancelled = true; };
   }, [activeWorkspace, isWorkspaceInitializing, addToast]);
 
-  const formatCurrency = (value: number, currency = 'USD') => {
-    if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-    if (value >= 1000) return `$${(value / 1000).toFixed(1)}k`;
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value);
-  };
 
   if (isLoading) {
     return (
