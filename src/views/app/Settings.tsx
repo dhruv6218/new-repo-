@@ -29,6 +29,7 @@ export const Settings = () => {
   const [preferences, setPreferences] = useState<NotificationPreferences>({
     payment_received: true, reminder_sent: true, invoice_dispute: true, weekly_summary: false,
   });
+  const [billing, setBilling] = useState<{ plan: { code: string; name: string }; subscription: { status: string } | null; limits: { recoveries: number | null } | null } | null>(null);
 
   const fullName = typeof user?.user_metadata?.full_name === 'string' ? user.user_metadata.full_name : 'User';
   const email = user?.email || 'user@example.com';
@@ -51,6 +52,14 @@ export const Settings = () => {
     }).catch(error => addToast(error instanceof Error ? error.message : 'Could not load settings.', 'error'))
       .finally(() => setIsLoading(false));
   }, [user, activeWorkspace, fullName, addToast]);
+
+  useEffect(() => {
+    if (!user || activeTab !== 'billing' || activeWorkspace?.id === 'ws-demo-astrix') return;
+    fetch('/api/billing/status').then(async response => {
+      if (!response.ok) throw new Error('Could not load billing status.');
+      return response.json() as Promise<typeof billing>;
+    }).then(setBilling).catch(error => addToast(error instanceof Error ? error.message : 'Could not load billing status.', 'error'));
+  }, [user, activeTab, activeWorkspace, addToast]);
 
   const saveProfile = async () => {
     if (!user || !activeWorkspace) return;
@@ -190,8 +199,10 @@ export const Settings = () => {
                       <Sparkles className="w-5 h-5 text-brand-yellow" />
                       <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Current Plan</span>
                     </div>
-                    <h2 className="font-heading text-3xl font-black text-white mb-2">Hook � Free Tier</h2>
-                    <p className="text-gray-400 text-sm">3 free automated recoveries per month. (0 remaining this month)</p>
+                    <h2 className="font-heading text-3xl font-black text-white mb-2">{billing?.plan.name ?? 'Hook'} Plan</h2>
+                    <p className="text-gray-400 text-sm">
+                      {billing?.subscription ? `Subscription ${billing.subscription.status}.` : '3 free automated recoveries per month.'}
+                    </p>
                   </div>
                   <button onClick={() => router.push('/pricing')} className="w-full md:w-auto bg-brand-blue text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg text-sm whitespace-nowrap">
                     Upgrade to Solo � $29/mo

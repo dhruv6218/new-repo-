@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
 
-export async function POST(request: NextRequest) {
-  // TODO: Verify Dodo Payments webhook signature
-  // const signature = request.headers.get('webhook-id');
-
-  const body = await request.json();
-  console.log('[Dodo Payments Webhook]', body?.type);
-
-  return NextResponse.json({ received: true }, { status: 200 });
+export async function POST() {
+  return NextResponse.json(
+    {
+      error: 'Dodo webhook ingestion is disabled until the provider signature format is configured.',
+      setup: 'Add the documented Dodo verification implementation before enabling this route.',
+    },
+    { status: 503 },
+  );
 }

@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-export type PaymentProvider = 'stripe' | 'razorpay';
+export type PaymentProvider = 'stripe' | 'razorpay' | 'dodo';
 
 export function verifyStripeSignature(
   payload: string,
@@ -51,11 +51,16 @@ async function supabaseRequest(path: string, init: RequestInit): Promise<Respons
   });
 }
 
-export async function claimWebhookEvent(provider: PaymentProvider, eventId: string, payload: unknown): Promise<boolean> {
+export async function claimWebhookEvent(
+  provider: PaymentProvider,
+  eventId: string,
+  payload: unknown,
+  signatureValid = true,
+): Promise<boolean> {
   const response = await supabaseRequest('gateway_webhook_events', {
     method: 'POST',
     headers: { Prefer: 'resolution=ignore-duplicates,return=representation' },
-    body: JSON.stringify({ provider, event_id: eventId, payload }),
+    body: JSON.stringify({ provider, provider_event_id: eventId, signature_valid: signatureValid, payload }),
   });
   if (!response.ok) throw new Error(`Unable to persist webhook event (${response.status})`);
   return (await response.json() as unknown[]).length > 0;
