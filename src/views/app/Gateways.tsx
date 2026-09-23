@@ -1,19 +1,78 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AppLayout } from '../../layouts/AppLayout';
-import { CreditCard, CheckCircle2, Plus, ExternalLink, ShieldCheck, Zap, Link as LinkIcon } from 'lucide-react';
+import { useToast } from '../../contexts/ToastContext';
+import { useWorkspace } from '../../contexts/WorkspaceContext';
+import { api } from '../../lib/api';
+import { GatewaySettings } from '../../types';
+import { CheckCircle2, Plus, ShieldCheck, Zap, Link as LinkIcon } from 'lucide-react';
 
 export const Gateways = () => {
-  const [isStripeConnected, setIsStripeConnected] = useState(true);
-  const [isRazorpayConnected, setIsRazorpayConnected] = useState(false);
-  const [isDodoConnected, setIsDodoConnected] = useState(false);
+  const { addToast } = useToast();
+  const { activeWorkspace } = useWorkspace();
+  const [gateways, setGateways] = useState<GatewaySettings[]>([]);
   const [staticLink, setStaticLink] = useState('');
+  const [isSavingLink, setIsSavingLink] = useState(false);
+  useEffect(() => {
+    if (!activeWorkspace) return;
+    api.gateways.list(activeWorkspace.id)
+      .then(setGateways)
+      .catch(error => addToast(error instanceof Error ? error.message : 'Could not load gateway connections.', 'error'))
+  }, [activeWorkspace, addToast]);
+
+  const isConnected = (type: GatewaySettings['type']) => gateways.some(gateway => gateway.type === type && gateway.is_active);
+
+  const updateGateway = async (name: 'stripe' | 'razorpay' | 'dodo') => {
+    const existing = gateways.find(gateway => gateway.type === name && gateway.is_active);
+    if (existing) {
+      if (!window.confirm(`Disconnect ${name} from this workspace?`)) return;
+      await api.gateways.remove(existing.id);
+      setGateways(current => current.map(gateway => gateway.id === existing.id ? { ...gateway, is_active: false } : gateway));
+      addToast(`${name} disconnected.`, 'success');
+      return;
+    }
+    if (!activeWorkspace) return;
+    try {
+      const created = await api.gateways.create({ workspace_id: activeWorkspace.id, type: name, label: name === 'dodo' ? 'Dodo Payments' : name[0].toUpperCase() + name.slice(1), is_active: true });
+      setGateways(current => [...current.filter(gateway => gateway.type !== name), created]);
+      addToast(`${name} connection saved. Secret setup will be completed securely in the next connection step.`, 'success');
+    } catch (error) {
+      addToast(error instanceof Error ? error.message : `Could not connect ${name}.`, 'error');
+    }
+  };
+
+  const saveStaticLink = () => {
+    if (!staticLink.trim()) {
+      localStorage.removeItem('astrix_demo_static_link');
+      addToast('Enter a payment link before saving.', 'warning');
+      return;
+    }
+    try {
+      const url = new URL(staticLink.trim());
+      if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Invalid protocol');
+    } catch {
+      addToast('Use a valid http:// or https:// payment link.', 'warning');
+      return;
+    }
+    if (!activeWorkspace) return;
+    setIsSavingLink(true);
+    api.gateways.create({ workspace_id: activeWorkspace.id, type: 'custom', label: 'Static payment link', static_url: staticLink.trim(), is_active: true })
+      .then(created => {
+        setGateways(current => [...current.filter(gateway => gateway.type !== 'custom'), created]);
+        addToast('Static payment link saved.', 'success');
+      })
+      .catch(error => addToast(error instanceof Error ? error.message : 'Could not save the payment link.', 'error'))
+      .finally(() => setIsSavingLink(false));
+  };
 
   return (
     <AppLayout 
       title="Payment Gateways" 
-      subtitle="Connect integrations to enable 1-Click Checkouts"
+      subtitle="Configure demo payment connections and checkout links"
     >
       <div className="space-y-8 animate-[fadeIn_0.3s_ease-out]">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status">
+          {activeWorkspace?.id === 'ws-demo-astrix' ? 'Demo mode: gateway connections are stored only in this browser. No payments are processed.' : 'Connection metadata is stored securely in your workspace. API secrets are never stored in the browser.'}
+        </div>
         
         {/* Hero Section */}
         <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-8 text-white shadow-xl relative overflow-hidden">
@@ -25,7 +84,7 @@ export const Gateways = () => {
             </div>
             <h2 className="font-heading text-2xl md:text-3xl font-black mb-3">Seamless 1-Click Checkouts</h2>
             <p className="text-gray-400 text-sm md:text-base leading-relaxed mb-6">
-              Connect your preferred payment gateways. Astrix AI will automatically generate unique payment links for every overdue invoice and embed them directly into the reminder emails.
+              Configure demo payment gateways and preview where payment links would appear in reminder emails.
             </p>
             <div className="flex flex-wrap gap-4">
               <span className="flex items-center gap-1.5 text-xs font-bold bg-gray-800/50 border border-gray-700 rounded-full px-3 py-1.5">
@@ -57,7 +116,7 @@ export const Gateways = () => {
             <p className="text-sm text-gray-500 mb-6 flex-1">Global payments, Credit cards, Apple Pay, Google Pay.</p>
 
             <div className="space-y-4 mt-auto">
-              {isStripeConnected ? (
+              {isConnected('stripe') ? (
                 <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Status</span>
@@ -67,14 +126,15 @@ export const Gateways = () => {
               ) : null}
               
               <button 
-                onClick={() => setIsStripeConnected(!isStripeConnected)}
+                onClick={() => void updateGateway('stripe')}
+                aria-label={isConnected('stripe') ? 'Disconnect Stripe' : 'Connect Stripe'}
                 className={`w-full py-3 rounded-xl font-bold text-sm transition-colors ${
-                  isStripeConnected 
+                  isConnected('stripe')
                     ? 'bg-white border-2 border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50' 
                     : 'bg-[#635BFF] text-white hover:bg-[#5249e5]'
                 }`}
               >
-                {isStripeConnected ? 'Manage Stripe' : 'Connect Stripe'}
+                {isConnected('stripe') ? 'Disconnect Stripe' : 'Connect Stripe'}
               </button>
             </div>
           </div>
@@ -96,14 +156,15 @@ export const Gateways = () => {
 
             <div className="space-y-4 mt-auto">
               <button 
-                onClick={() => setIsRazorpayConnected(!isRazorpayConnected)}
+                onClick={() => void updateGateway('razorpay')}
+                aria-label={isConnected('razorpay') ? 'Disconnect Razorpay' : 'Connect Razorpay'}
                 className={`w-full py-3 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 ${
-                  isRazorpayConnected 
+                  isConnected('razorpay')
                     ? 'bg-white border-2 border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50' 
                     : 'bg-[#02042B] text-white hover:bg-black'
                 }`}
               >
-                {isRazorpayConnected ? 'Manage Razorpay' : <><Plus className="w-4 h-4" /> Connect Razorpay</>}
+                {isConnected('razorpay') ? 'Disconnect Razorpay' : <><Plus className="w-4 h-4" /> Connect Razorpay</>}
               </button>
             </div>
           </div>
@@ -125,14 +186,15 @@ export const Gateways = () => {
 
             <div className="space-y-4 mt-auto">
               <button 
-                onClick={() => setIsDodoConnected(!isDodoConnected)}
+                onClick={() => void updateGateway('dodo')}
+                aria-label={isConnected('dodo') ? 'Disconnect Dodo Payments' : 'Connect Dodo Payments'}
                 className={`w-full py-3 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 ${
-                  isDodoConnected 
+                  isConnected('dodo')
                     ? 'bg-white border-2 border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50' 
                     : 'bg-[#18181B] text-[#D4FF46] hover:bg-black'
                 }`}
               >
-                {isDodoConnected ? 'Manage Dodo' : <><Plus className="w-4 h-4" /> Connect Dodo</>}
+                {isConnected('dodo') ? 'Disconnect Dodo' : <><Plus className="w-4 h-4" /> Connect Dodo</>}
               </button>
             </div>
           </div>
@@ -145,7 +207,7 @@ export const Gateways = () => {
             <div className="flex-1 text-center md:text-left w-full">
               <h3 className="font-heading text-lg font-bold text-gray-900 mb-1">Global Static Payment Link</h3>
               <p className="text-sm text-gray-500 mb-3">
-                Don't want to use an API gateway? Add a static link (like PayPal.me, UPI link, or a custom checkout page) that will be appended to all reminder emails. Note: You can also set specific payment links per invoice when adding them.
+                Don&apos;t want to use an API gateway? Add a static link (like PayPal.me, UPI link, or a custom checkout page) that will be appended to all reminder emails. Note: You can also set specific payment links per invoice when adding them.
               </p>
               <div className="flex gap-2">
                 <input 
@@ -155,8 +217,8 @@ export const Gateways = () => {
                   value={staticLink}
                   onChange={(e) => setStaticLink(e.target.value)}
                 />
-                <button className="px-6 py-2 bg-gray-900 text-white rounded-xl font-bold text-sm hover:bg-black transition-colors whitespace-nowrap">
-                  Save Link
+                <button onClick={saveStaticLink} disabled={isSavingLink} className="px-6 py-2 bg-gray-900 text-white rounded-xl font-bold text-sm hover:bg-black transition-colors whitespace-nowrap disabled:opacity-60">
+                  {isSavingLink ? 'Saving…' : 'Save Link'}
                 </button>
               </div>
             </div>

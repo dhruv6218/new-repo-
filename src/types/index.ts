@@ -1,6 +1,6 @@
 export type InvoiceStatus = 'pending' | 'paid' | 'paused' | 'disputed';
 export type AIStatus = 'nudge_sent' | 'escalated' | 'pending' | 'paid';
-export type GatewayType = 'stripe' | 'razorpay' | 'upi' | 'custom';
+export type GatewayType = 'stripe' | 'razorpay' | 'dodo' | 'upi' | 'custom';
 export type PlanType = 'Hook' | 'Solo' | 'Agency';
 
 export interface Invoice {

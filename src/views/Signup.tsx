@@ -2,13 +2,12 @@
 
 import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { AuthLayout } from '../layouts/AuthLayout';
-import { Loader2, AlertCircle, Sparkles, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { Loader2, AlertCircle, Sparkles, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 function SignupForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const isDemo = searchParams?.get('demo') === 'true';
   const { signUp, signInWithGoogle } = useAuth();
@@ -20,16 +19,14 @@ function SignupForm() {
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [agreedTerms, setAgreedTerms] = useState(false);
 
   const handleGoogleSignup = async () => {
     setIsGoogleLoading(true);
     setError(null);
-    await signInWithGoogle();
+    const { error: googleError } = await signInWithGoogle();
     setIsGoogleLoading(false);
-    router.push('/onboarding/step-1');
+    if (googleError) setError(googleError);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -41,7 +38,7 @@ function SignupForm() {
     setIsLoading(true);
     setError(null);
 
-    const { error: signUpError } = await signUp(email, 'magiclink', name, password);
+    const { error: signUpError } = await signUp(email, 'magiclink', name);
 
     setIsLoading(false);
 
@@ -67,12 +64,6 @@ function SignupForm() {
               Click the link in your email to activate your account and log in.
             </p>
             <div className="space-y-3">
-              <button 
-                onClick={() => router.push('/onboarding/step-1')} 
-                className="w-full bg-brand-blue text-white font-bold py-3.5 px-4 rounded-xl hover:bg-blue-700 transition-colors text-sm shadow-glow-blue btn-shine"
-              >
-                Continue to Onboarding →
-              </button>
               <button 
                 onClick={() => setSent(false)} 
                 className="text-xs text-gray-500 font-bold hover:underline"
@@ -155,27 +146,7 @@ function SignupForm() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-bold text-gray-900 mb-1.5" htmlFor="password">Password</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    id="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:bg-white focus:ring-4 focus:ring-brand-blue/20 focus:border-brand-blue block p-3.5 pr-11 transition-all duration-300 outline-none placeholder-gray-400"
-                    placeholder="••••••••"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
+              <p className="text-xs text-gray-500">We&apos;ll email you a secure magic link to finish creating your account. No password required.</p>
 
               <div className="flex items-start pt-2">
                 <div className="flex items-center h-5">

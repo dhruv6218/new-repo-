@@ -1,9 +1,31 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
 
-// Pure Passthrough Middleware for frontend navigation
-export async function proxy(_request: NextRequest) {
-  return NextResponse.next();
+export async function proxy(request: NextRequest) {
+  let response = NextResponse.next({ request });
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return response;
+  const supabase = createServerClient(url, key, {
+    cookies: {
+      getAll: () => request.cookies.getAll(),
+      setAll: (cookiesToSet) => {
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+        response = NextResponse.next({ request });
+        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+      },
+    },
+  });
+  const { data: { user } } = await supabase.auth.getUser();
+  const pathname = request.nextUrl.pathname;
+  const protectedPath = pathname.startsWith('/app') || pathname.startsWith('/onboarding') || pathname === '/godview/dashboard';
+  if (protectedPath && !user && request.nextUrl.searchParams.get('demo') !== 'true') {
+    const login = new URL('/login', request.url);
+    login.searchParams.set('next', `${pathname}${request.nextUrl.search}`);
+    return NextResponse.redirect(login);
+  }
+  return response;
 }
 
 export const config = {

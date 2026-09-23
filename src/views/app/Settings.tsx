@@ -20,7 +20,7 @@ export const Settings = () => {
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const fullName = user?.user_metadata?.full_name || 'User';
+  const fullName = typeof user?.user_metadata?.full_name === 'string' ? user.user_metadata.full_name : 'User';
   const email = user?.email || 'user@example.com';
   const initials = fullName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
 
@@ -68,7 +68,7 @@ export const Settings = () => {
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
                   activeTab === tab.id 
                     ? tab.id === 'danger' ? 'bg-red-50 text-red-600' : 'bg-gray-900 text-white shadow-sm'
-                    : (tab as any).color || 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    : ('color' in tab ? tab.color : undefined) || 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`}
               >
                 <tab.icon className="w-4 h-4 shrink-0" />

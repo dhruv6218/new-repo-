@@ -9,20 +9,38 @@ import { useAuth } from '../contexts/AuthContext';
 
 export const Login = () => {
   const router = useRouter();
-  const { signIn, signInWithGoogle } = useAuth();
+  const { signIn, sendMagicLink, signInWithGoogle } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const getNext = () => {
+    const value = new URLSearchParams(window.location.search).get('next');
+    return value && value.startsWith('/') && !value.startsWith('//') ? value : '/app';
+  };
 
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true);
     setError(null);
-    await signInWithGoogle();
+    const { error: googleError } = await signInWithGoogle();
     setIsGoogleLoading(false);
-    router.push('/app');
+    if (googleError) setError(googleError);
+  };
+
+  const handleMagicLink = async () => {
+    if (!email) {
+      setError('Enter your email address first.');
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
+    const { error: magicError } = await sendMagicLink(email);
+    setIsLoading(false);
+    if (magicError) setError(magicError);
+    else setMagicLinkSent(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -41,7 +59,7 @@ export const Login = () => {
     if (signInError) {
       setError(signInError);
     } else {
-      router.push('/app');
+      router.push(getNext());
     }
   };
 
@@ -50,7 +68,7 @@ export const Login = () => {
       <div className="bg-white p-8 md:p-10 rounded-3xl shadow-apple border border-gray-200 w-full animate-[fadeIn_0.5s_ease-out]">
         <div className="text-center mb-8">
           <h1 className="font-heading text-3xl font-bold text-gray-900 mb-2 tracking-tight">Welcome back.</h1>
-          <p className="text-gray-500 text-sm font-medium">Sign in to your Astrix workspace using your email & password.</p>
+          <p className="text-gray-500 text-sm font-medium">Sign in with a password or a secure magic link.</p>
         </div>
 
         <button 
@@ -72,7 +90,7 @@ export const Login = () => {
 
         <div className="flex items-center gap-4 mb-6">
           <div className="h-[1px] bg-gray-200 flex-1"></div>
-          <span className="text-[10px] text-gray-400 font-mono uppercase tracking-widest font-bold">or sign in with credentials</span>
+          <span className="text-[10px] text-gray-400 font-mono uppercase tracking-widest font-bold">or sign in with email</span>
           <div className="h-[1px] bg-gray-200 flex-1"></div>
         </div>
 
@@ -130,13 +148,21 @@ export const Login = () => {
             {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Sign In'}
           </button>
         </form>
+        <button
+          type="button"
+          onClick={handleMagicLink}
+          disabled={isLoading || isGoogleLoading || !email}
+          className="w-full mt-3 py-3 text-sm font-bold text-brand-blue border border-brand-blue/30 rounded-xl hover:bg-blue-50 disabled:opacity-50"
+        >
+          {magicLinkSent ? 'Magic link sent — check your inbox' : 'Email me a magic link'}
+        </button>
 
         <p className="text-sm text-gray-500 font-medium text-center mt-8 mb-6">
           Don&apos;t have an account? <Link href="/signup" className="text-brand-blue font-bold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue rounded-sm">Create account →</Link>
         </p>
 
         <div className="pt-6 border-t border-gray-100">
-          <Link href="/app" className="w-full flex items-center justify-center gap-2 text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 font-bold rounded-xl text-sm px-5 py-4 transition-all shadow-sm outline-none focus-visible:ring-4 focus-visible:ring-gray-200">
+          <Link href="/app?demo=true" className="w-full flex items-center justify-center gap-2 text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 font-bold rounded-xl text-sm px-5 py-4 transition-all shadow-sm outline-none focus-visible:ring-4 focus-visible:ring-gray-200">
             <Sparkles className="w-4 h-4 text-brand-blue" /> Instant Demo Access
           </Link>
         </div>

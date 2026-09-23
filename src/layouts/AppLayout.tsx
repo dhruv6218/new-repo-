@@ -1,14 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
-  LayoutDashboard, FileText, Bot, Settings, LogOut, 
-  Bell, Menu, X, ChevronDown, Check, Plus, Lock,
-  CreditCard, Sparkles, Search, Zap, Activity,
-  Radio, Target, GitCompare, CheckCircle2, FileCode2,
-  Rocket, Building2, MessageCircle, Megaphone
+  LayoutDashboard, FileText, Bot, Settings, LogOut,
+  Bell, Menu, X, ChevronDown, CreditCard, Sparkles, Zap, Activity,
+  Megaphone
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useWorkspace } from '../contexts/WorkspaceContext';
@@ -26,38 +24,24 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, title, subtitle,
   const pathname = usePathname();
   const router = useRouter();
   const { user, signOut } = useAuth();
-  const { workspaces, activeWorkspace, isWorkspaceInitializing, setActiveWorkspace } = useWorkspace();
+  const { activeWorkspace, isWorkspaceInitializing } = useWorkspace();
   const { addToast } = useToast();
   
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isWorkspaceDropdownOpen, setIsWorkspaceDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
   
   const [globalAnnouncement, setGlobalAnnouncement] = useState('');
   const [impersonationName, setImpersonationName] = useState('');
 
   useEffect(() => {
-    setIsMobileMenuOpen(false);
-    setIsWorkspaceDropdownOpen(false);
-    
-    // Check for global announcements
-    const savedAnnouncement = localStorage.getItem('global_announcement');
-    if (savedAnnouncement) setGlobalAnnouncement(savedAnnouncement);
+    const frame = window.requestAnimationFrame(() => {
+      const savedAnnouncement = localStorage.getItem('global_announcement');
+      setGlobalAnnouncement(savedAnnouncement || '');
 
-    // Check for impersonation
-    const impersonated = localStorage.getItem('impersonated_user_name');
-    if (impersonated) setImpersonationName(impersonated);
+      const impersonated = localStorage.getItem('impersonated_user_name');
+      setImpersonationName(impersonated || '');
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [pathname]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsWorkspaceDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const handleSignOut = async () => {
     await signOut();
@@ -96,7 +80,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, title, subtitle,
     },
   ];
 
-  const fullName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
+  const fullName = (typeof user?.user_metadata?.full_name === 'string' ? user.user_metadata.full_name : '') || user?.email?.split('@')[0] || 'User';
   const initials = fullName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
   const wsName = activeWorkspace?.name || 'Workspace';
   const wsInitials = wsName.substring(0, 2).toUpperCase();
@@ -124,7 +108,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, title, subtitle,
             />
             <span className="font-heading text-lg font-black tracking-tighter text-white">ASTRIX AI</span>
           </Link>
-          <button className="md:hidden text-slate-400 hover:text-white" onClick={() => setIsMobileMenuOpen(false)}>
+          <button aria-label="Close navigation menu" className="md:hidden text-slate-400 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-astrix-teal rounded-lg" onClick={() => setIsMobileMenuOpen(false)}>
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -158,6 +142,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, title, subtitle,
                     <Link
                       key={item.name}
                       href={item.path}
+                                      onClick={() => setIsMobileMenuOpen(false)}
                       className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-astrix-teal group ${
                         isActive 
                           ? 'bg-astrix-teal text-white shadow-md' 
@@ -184,7 +169,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, title, subtitle,
 
         {/* Upgrade Banner */}
         <div className="px-4 py-3 shrink-0">
-          <button
+          <button aria-label="Open navigation menu"
             onClick={handleUpgradeClick}
             className="w-full bg-gradient-to-r from-brand-blue/20 to-astrix-teal/20 border border-brand-blue/30 text-white rounded-xl px-3 py-3 text-left hover:from-brand-blue/30 hover:to-astrix-teal/30 transition-all group"
           >
@@ -264,7 +249,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, title, subtitle,
               <Menu className="w-5 h-5" />
             </button>
             {backPath && (
-              <Link href={backPath} className="p-2 -ml-2 text-gray-400 hover:text-gray-900 transition-colors">
+              <Link aria-label="Go back" href={backPath} className="p-2 -ml-2 text-gray-400 hover:text-gray-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-astrix-teal rounded-lg">
                 <ChevronDown className="w-5 h-5 rotate-90" />
               </Link>
             )}
@@ -280,7 +265,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, title, subtitle,
             </Link>
             {actions && <div className="hidden sm:block">{actions}</div>}
             <div className="h-6 w-[1px] bg-gray-200 mx-1 hidden sm:block"></div>
-            <button className="text-gray-400 hover:text-gray-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-astrix-teal rounded-full p-1.5 relative">
+            <button aria-label="Notifications" className="text-gray-400 hover:text-gray-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-astrix-teal rounded-full p-1.5 relative">
               <Bell className="w-5 h-5" />
             </button>
           </div>

@@ -1,8 +1,10 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
+import { useToast } from './ToastContext';
 import { Workspace } from '../types';
+import { createSupabaseBrowserClient } from '../lib/supabase/client';
 import { initializeWorkspace } from '../lib/api';
 
 interface WorkspaceContextType {
@@ -11,83 +13,106 @@ interface WorkspaceContextType {
   isWorkspaceInitializing: boolean;
   setActiveWorkspace: (ws: Workspace) => void;
   refreshWorkspaces: () => Promise<void>;
-  updateWorkspaceName: (name: string) => void;
+  updateWorkspaceName: (name: string) => Promise<void>;
 }
 
-const WorkspaceContext = createContext<WorkspaceContextType>({
+const emptyContext: WorkspaceContextType = {
   activeWorkspace: null, workspaces: [], isWorkspaceInitializing: true,
-  setActiveWorkspace: () => {}, refreshWorkspaces: async () => {},
-  updateWorkspaceName: () => {},
-});
-
+  setActiveWorkspace: () => {}, refreshWorkspaces: async () => {}, updateWorkspaceName: async () => {},
+};
+const WorkspaceContext = createContext<WorkspaceContextType>(emptyContext);
 const STORAGE_KEY = 'astrix_demo_workspace';
-
 const DEFAULT_MOCK_WORKSPACE: Workspace = {
-  id: 'ws-demo-astrix',
-  name: 'Acme Corp Workspace',
-  slug: 'acme-corp',
-  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-  logo_url: null,
-  plan: 'Hook',
-  created_at: new Date().toISOString(),
+  id: 'ws-demo-astrix', name: 'Acme Corp Workspace', slug: 'acme-corp',
+  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', logo_url: null,
+  plan: 'Hook', created_at: new Date().toISOString(),
 };
 
+const isDemo = () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('demo') === 'true';
+const slugify = (value: string) => value.toLowerCase().normalize('NFKD').replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'workspace';
+const mapWorkspace = (row: { id: string; name: string; slug: string; created_at: string }, timezone: string): Workspace => ({
+  id: row.id, name: row.name, slug: row.slug, timezone, logo_url: null, plan: 'Hook', created_at: row.created_at,
+});
+
 export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([DEFAULT_MOCK_WORKSPACE]);
-  const [activeWorkspace, setActiveWs] = useState<Workspace | null>(DEFAULT_MOCK_WORKSPACE);
-  const [isWorkspaceInitializing, setIsWorkspaceInitializing] = useState(false);
+  const { user, isInitializing: isAuthInitializing } = useAuth();
+  const { addToast } = useToast();
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [activeWorkspace, setActiveWs] = useState<Workspace | null>(null);
+  const [isWorkspaceInitializing, setIsWorkspaceInitializing] = useState(true);
 
   const fetchWorkspaces = async () => {
+    if (isAuthInitializing) return;
     setIsWorkspaceInitializing(true);
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const ws = JSON.parse(stored) as Workspace;
-        setWorkspaces([ws]);
-        setActiveWs(ws);
+    try {
+      if (isDemo()) {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        const ws = stored ? JSON.parse(stored) as Workspace : DEFAULT_MOCK_WORKSPACE;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(ws));
+        setWorkspaces([ws]); setActiveWs(ws);
         initializeWorkspace(ws.id);
-      } catch {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_MOCK_WORKSPACE));
-        setWorkspaces([DEFAULT_MOCK_WORKSPACE]);
-        setActiveWs(DEFAULT_MOCK_WORKSPACE);
-        initializeWorkspace(DEFAULT_MOCK_WORKSPACE.id);
+        return;
       }
-    } else {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_MOCK_WORKSPACE));
-      setWorkspaces([DEFAULT_MOCK_WORKSPACE]);
-      setActiveWs(DEFAULT_MOCK_WORKSPACE);
-      initializeWorkspace(DEFAULT_MOCK_WORKSPACE.id);
+      if (!user) {
+        setWorkspaces([]); setActiveWs(null);
+        return;
+      }
+      const supabase = createSupabaseBrowserClient();
+      const [{ data: profile, error: profileError }, { data: memberships, error: memberError }] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
+        supabase.from('workspace_members').select('workspace_id').eq('user_id', user.id),
+      ]);
+      if (profileError) throw profileError;
+      if (memberError) throw memberError;
+      let workspaceIds = (memberships ?? []).map(member => member.workspace_id);
+      if (workspaceIds.length === 0) {
+        const base = slugify(String(user.user_metadata.full_name || user.email.split('@')[0]));
+        let created: { id: string; name: string; slug: string; created_at: string } | null = null;
+        for (let attempt = 0; attempt < 4 && !created; attempt += 1) {
+          const slug = attempt === 0 ? base : `${base}-${attempt + 1}`;
+          const result = await supabase.from('workspaces').insert({ name: String(user.user_metadata.full_name || `${user.email}'s workspace`), slug, created_by: user.id }).select('id,name,slug,created_at').single();
+          if (!result.error && result.data) created = result.data;
+          else if (result.error && !result.error.message.toLowerCase().includes('duplicate')) throw result.error;
+        }
+        if (!created) {
+          const retry = await supabase.from('workspace_members').select('workspace_id').eq('user_id', user.id);
+          if (retry.error || !retry.data?.length) throw new Error('Could not provision your workspace.');
+          workspaceIds = retry.data.map(member => member.workspace_id);
+        } else workspaceIds = [created.id];
+      }
+      const { data: rows, error } = await supabase.from('workspaces').select('id,name,slug,created_at').in('id', workspaceIds);
+      if (error) throw error;
+      const timezone = profile?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      const mapped = (rows ?? []).map(row => mapWorkspace(row, timezone));
+      setWorkspaces(mapped); setActiveWs(mapped[0] ?? null);
+    } catch (error) {
+      setWorkspaces([]); setActiveWs(null);
+      addToast(error instanceof Error ? error.message : 'Could not load your workspace.', 'error');
+    } finally {
+      setIsWorkspaceInitializing(false);
     }
-    setIsWorkspaceInitializing(false);
   };
 
-  const handleSetActiveWorkspace = (ws: Workspace) => {
-    setActiveWs(ws);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(ws));
+  const setActiveWorkspace = (workspace: Workspace) => {
+    setActiveWs(workspace);
+    if (isDemo()) localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace));
   };
 
-  const updateWorkspaceName = (name: string) => {
+  const updateWorkspaceName = async (name: string) => {
     if (!activeWorkspace) return;
-    const updated = { ...activeWorkspace, name };
-    handleSetActiveWorkspace(updated);
-    setWorkspaces([updated]);
+    if (isDemo()) {
+      setActiveWorkspace({ ...activeWorkspace, name }); return;
+    }
+    const { error } = await createSupabaseBrowserClient().from('workspaces').update({ name: name.trim() }).eq('id', activeWorkspace.id);
+    if (error) { addToast(error.message, 'error'); return; }
+    const updated = { ...activeWorkspace, name: name.trim() };
+    setActiveWs(updated); setWorkspaces([updated]);
   };
 
   useEffect(() => {
-    fetchWorkspaces();
-  }, [user]);
-
-  return (
-    <WorkspaceContext.Provider value={{
-      activeWorkspace, workspaces, isWorkspaceInitializing,
-      setActiveWorkspace: handleSetActiveWorkspace,
-      refreshWorkspaces: fetchWorkspaces,
-      updateWorkspaceName,
-    }}>
-      {children}
-    </WorkspaceContext.Provider>
-  );
+    queueMicrotask(() => { void fetchWorkspaces(); });
+  }, [user, isAuthInitializing]); // eslint-disable-line react-hooks/exhaustive-deps
+  return <WorkspaceContext.Provider value={{ activeWorkspace, workspaces, isWorkspaceInitializing, setActiveWorkspace, refreshWorkspaces: fetchWorkspaces, updateWorkspaceName }}>{children}</WorkspaceContext.Provider>;
 };
 
 export const useWorkspace = () => useContext(WorkspaceContext);

@@ -52,7 +52,8 @@ export const Dashboard = () => {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
 
-  const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'there';
+  const fullName = typeof user?.user_metadata?.full_name === 'string' ? user.user_metadata.full_name : '';
+  const firstName = fullName.split(' ')[0] || 'there';
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -88,7 +89,7 @@ export const Dashboard = () => {
   return (
     <AppLayout 
       title={`Welcome back, ${firstName}.`} 
-      subtitle="Here's your revenue recovery overview."
+      subtitle="Here's your revenue recovery overview (demo data)."
     >
       <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
         
@@ -144,7 +145,7 @@ export const Dashboard = () => {
               </div>
               <div className="text-3xl font-heading font-black text-gray-900">{metrics?.active_chases}</div>
               <div className="text-xs text-brand-blue font-bold mt-2 flex items-center gap-1">
-                <Bot className="w-3 h-3" /> AI running autonomously
+                <Bot className="w-3 h-3" />                 Demo activity preview
               </div>
             </div>
           </div>
@@ -203,8 +204,8 @@ export const Dashboard = () => {
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Daily Chase Engine</span>
                   </div>
                 </div>
-                <h3 className="font-heading text-lg font-bold text-white mb-1">AI Running Autonomously</h3>
-                <p className="text-sm text-gray-400 mb-5">Next batch: Tomorrow 09:00 AM UTC</p>
+                <h3 className="font-heading text-lg font-bold text-white mb-1">Demo chase activity</h3>
+                <p className="text-sm text-gray-400 mb-5">No automated messages are sent from this demo.</p>
                 <div className="space-y-2 text-xs font-mono">
                   <div className="flex justify-between text-gray-500">
                     <span>Last run</span><span className="text-white font-bold">Today 9:00 AM</span>

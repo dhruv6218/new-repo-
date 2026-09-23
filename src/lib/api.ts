@@ -5,6 +5,7 @@ import {
   Invoice, GatewaySettings, ToneSettings, ActivityItem, AdminUser,
   Account, Signal, Problem, Opportunity, Decision, Artifact, Launch,
 } from '../types';
+import { createSupabaseBrowserClient } from './supabase/client';
 
 // ─── Storage Keys ───────────────────────────────────────────────────────────
 const KEYS = {
@@ -44,6 +45,32 @@ const setStorage = <T>(key: string, value: T): void => {
 };
 
 export const triggerUpdate = () => window.dispatchEvent(new Event('data-updated'));
+
+const isDemoWorkspace = (workspaceId: string) => workspaceId === 'ws-demo-astrix';
+const supabaseClient = () => createSupabaseBrowserClient();
+const invoiceNumber = () => `INV-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+type GatewayRow = {
+  id: string; workspace_id: string; provider: string; account_label: string | null;
+  secret_metadata: Record<string, unknown>; is_active: boolean; created_at: string;
+};
+type ToneRow = {
+  workspace_id: string; settings: Record<string, unknown>; updated_at: string;
+};
+const mapSupabaseInvoice = (row: {
+  id: string; workspace_id: string; client_name: string; client_email: string; currency: string;
+  total_minor: number; due_at: string | null; status: string; ai_status: Invoice['ai_status'];
+  last_chased_at: string | null; reminder_count: number; created_at: string;
+}): Invoice => {
+  const due = row.due_at ? new Date(row.due_at) : null;
+  const daysOverdue = due ? Math.max(0, Math.floor((Date.now() - due.getTime()) / 86400000)) : 0;
+  return {
+    id: row.id, workspace_id: row.workspace_id, client_name: row.client_name, client_email: row.client_email,
+    amount: row.total_minor / 100, currency: row.currency, due_date: row.due_at ?? '',
+      status: row.status === 'paid' || row.status === 'paused' || row.status === 'disputed' ? row.status : 'pending',
+      ai_status: row.ai_status, last_chased_at: row.last_chased_at,
+    reminder_count: row.reminder_count, days_overdue: row.status === 'paid' ? 0 : daysOverdue, created_at: row.created_at,
+  };
+};
 
 // ─── Seed Data ────────────────────────────────────────────────────────────────
 export const initializeWorkspace = (workspaceId: string) => {
@@ -145,9 +172,25 @@ export const initializeWorkspace = (workspaceId: string) => {
 export const api = {
   invoices: {
     list: async (wsId: string): Promise<Invoice[]> => {
+      if (!isDemoWorkspace(wsId)) {
+        const { data, error } = await supabaseClient().from('invoices').select('*').eq('workspace_id', wsId).order('created_at', { ascending: false });
+        if (error) throw new Error(error.message);
+        return (data ?? []).map(mapSupabaseInvoice);
+      }
       return getStorage<Invoice[]>(KEYS.INVOICES, []).filter(i => i.workspace_id === wsId);
     },
     create: async (data: Omit<Invoice, 'id' | 'created_at' | 'ai_status' | 'last_chased_at' | 'reminder_count' | 'days_overdue'>): Promise<Invoice> => {
+      if (!isDemoWorkspace(data.workspace_id)) {
+        const amountMinor = Math.round(data.amount * 100);
+        const { data: created, error } = await supabaseClient().from('invoices').insert({
+          workspace_id: data.workspace_id, invoice_number: invoiceNumber(), client_name: data.client_name,
+          client_email: data.client_email, currency: data.currency.toUpperCase(), total_minor: amountMinor,
+          subtotal_minor: amountMinor, due_at: new Date(data.due_date).toISOString(), status: data.status,
+        }).select('*').single();
+        if (error || !created) throw new Error(error?.message || 'Could not create invoice.');
+        triggerUpdate();
+        return mapSupabaseInvoice(created);
+      }
       const invoices = getStorage<Invoice[]>(KEYS.INVOICES, []);
       const dueDate = new Date(data.due_date);
       const today = new Date();
@@ -172,6 +215,17 @@ export const api = {
       return newInvoice;
     },
     update: async (id: string, data: Partial<Invoice>): Promise<void> => {
+      const localInvoice = getStorage<Invoice[]>(KEYS.INVOICES, []).find(invoice => invoice.id === id);
+      if (!localInvoice) {
+        const update: { status?: Invoice['status']; paused_at?: string | null } = {};
+        if (data.status) update.status = data.status;
+        if (data.status === 'paused') update.paused_at = new Date().toISOString();
+        if (data.status === 'pending') update.paused_at = null;
+        const { error } = await supabaseClient().from('invoices').update(update).eq('id', id);
+        if (error) throw new Error(error.message);
+        triggerUpdate();
+        return;
+      }
       const invoices = getStorage<Invoice[]>(KEYS.INVOICES, []);
       const idx = invoices.findIndex(i => i.id === id);
       if (idx !== -1) {
@@ -184,9 +238,44 @@ export const api = {
 
   gateways: {
     list: async (wsId: string): Promise<GatewaySettings[]> => {
+      if (!isDemoWorkspace(wsId)) {
+        const { data, error } = await supabaseClient().from('gateway_connections').select('*').eq('workspace_id', wsId).order('created_at', { ascending: true });
+        if (error) throw new Error(error.message);
+        return ((data ?? []) as GatewayRow[]).map(row => ({
+          id: row.id,
+          workspace_id: row.workspace_id,
+          type: row.provider === 'other' ? 'custom' : row.provider,
+          label: row.account_label || row.provider,
+          static_url: typeof row.secret_metadata?.url === 'string' ? row.secret_metadata.url : undefined,
+          is_active: row.is_active,
+          created_at: row.created_at,
+        } as GatewaySettings));
+      }
       return getStorage<GatewaySettings[]>(KEYS.GATEWAYS, []).filter(g => g.workspace_id === wsId);
     },
     create: async (data: Omit<GatewaySettings, 'id' | 'created_at'>): Promise<GatewaySettings> => {
+      if (!isDemoWorkspace(data.workspace_id)) {
+        const provider = data.type === 'custom' || data.type === 'upi' ? 'other' : data.type;
+        const metadata = data.static_url ? { url: data.static_url } : {};
+        const { data: created, error } = await supabaseClient().from('gateway_connections').upsert({
+          workspace_id: data.workspace_id,
+          provider,
+          account_label: data.label,
+          encrypted_secret_ref: 'pending-server-connection',
+          secret_metadata: metadata,
+          is_active: data.is_active,
+        }, { onConflict: 'workspace_id,provider,external_account_id' }).select('*').single();
+        if (error || !created) throw new Error(error?.message || 'Could not save gateway connection.');
+        triggerUpdate();
+        const saved = created as GatewayRow;
+        return {
+          id: saved.id, workspace_id: saved.workspace_id,
+          type: saved.provider === 'other' ? 'custom' : saved.provider as GatewaySettings['type'],
+          label: saved.account_label || saved.provider,
+          static_url: typeof saved.secret_metadata.url === 'string' ? saved.secret_metadata.url : undefined,
+          is_active: saved.is_active, created_at: saved.created_at,
+        } as GatewaySettings;
+      }
       const gateways = getStorage<GatewaySettings[]>(KEYS.GATEWAYS, []);
       const newGw: GatewaySettings = { ...data, id: genId(), created_at: new Date().toISOString() };
       gateways.push(newGw);
@@ -195,18 +284,55 @@ export const api = {
       return newGw;
     },
     remove: async (id: string): Promise<void> => {
-      const gateways = getStorage<GatewaySettings[]>(KEYS.GATEWAYS, []).filter(g => g.id !== id);
-      setStorage(KEYS.GATEWAYS, gateways);
-      triggerUpdate();
+      const localGateways = getStorage<GatewaySettings[]>(KEYS.GATEWAYS, []);
+      if (localGateways.some(gateway => gateway.id === id)) {
+        setStorage(KEYS.GATEWAYS, localGateways.filter(gateway => gateway.id !== id));
+        triggerUpdate();
+        return;
+      }
+      const { error } = await supabaseClient().from('gateway_connections').update({ is_active: false }).eq('id', id);
+      if (!error) {
+        triggerUpdate();
+        return;
+      }
+      throw new Error(error.message);
     },
   },
 
   tone: {
     get: async (wsId: string): Promise<ToneSettings | null> => {
+      if (!isDemoWorkspace(wsId)) {
+        const { data, error } = await supabaseClient().from('tone_settings').select('*').eq('workspace_id', wsId).maybeSingle();
+        if (error) throw new Error(error.message);
+        if (!data) return null;
+        const settings = (data as ToneRow).settings;
+        const tone = data as ToneRow;
+        return {
+          workspace_id: tone.workspace_id,
+          sample_emails: typeof settings.sample_emails === 'string' ? settings.sample_emails : '',
+          tone_level: typeof settings.tone_level === 'number' ? settings.tone_level : 2,
+          ai_prompt: typeof settings.ai_prompt === 'string' ? settings.ai_prompt : '',
+          updated_at: tone.updated_at,
+        };
+      }
       const settings = getStorage<ToneSettings | null>(KEYS.TONE, null);
       return settings?.workspace_id === wsId ? settings : null;
     },
     save: async (data: ToneSettings): Promise<void> => {
+      if (!isDemoWorkspace(data.workspace_id)) {
+        const { error } = await supabaseClient().from('tone_settings').upsert({
+          workspace_id: data.workspace_id,
+          tone: data.tone_level === 1 ? 'friendly' : data.tone_level === 3 ? 'firm' : 'professional',
+          settings: {
+            sample_emails: data.sample_emails,
+            tone_level: data.tone_level,
+            ai_prompt: data.ai_prompt,
+          },
+        }, { onConflict: 'workspace_id' });
+        if (error) throw new Error(error.message);
+        triggerUpdate();
+        return;
+      }
       setStorage(KEYS.TONE, { ...data, updated_at: new Date().toISOString() });
       triggerUpdate();
     },
@@ -385,7 +511,7 @@ export function useQuery<T>(fetcher: () => Promise<T>, deps: unknown[]) {
     } finally {
       setIsLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/use-memo
   }, deps);
 
   useEffect(() => {

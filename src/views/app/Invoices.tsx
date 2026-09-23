@@ -3,9 +3,10 @@ import { AppLayout } from '../../layouts/AppLayout';
 import { 
   FileText, CheckCircle2, AlertCircle, Clock, Send, TrendingUp, Pause, Play, Plus, Eye 
 } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { useWorkspace } from '../../contexts/WorkspaceContext';
+import { api, triggerUpdate } from '../../lib/api';
 
 interface Invoice {
   id: string;
@@ -30,33 +31,77 @@ const MOCK_INVOICES: Invoice[] = [
 ];
 
 export const Invoices = () => {
-  const { user } = useAuth();
   const { addToast } = useToast();
+  const { activeWorkspace, isWorkspaceInitializing } = useWorkspace();
   
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [invoiceFilter, setInvoiceFilter] = useState<'all' | 'pending' | 'paused' | 'paid'>('all');
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setInvoices(MOCK_INVOICES);
-      setIsLoading(false);
-    }, 600);
-    return () => clearTimeout(timer);
-  }, []);
+    let cancelled = false;
+    const reload = () => {
+      if (!activeWorkspace || isWorkspaceInitializing) return;
+      api.invoices.list(activeWorkspace.id).then(data => {
+        if (!cancelled) setInvoices(data);
+      }).catch(error => {
+        if (!cancelled) addToast(error instanceof Error ? error.message : 'Could not refresh invoices.', 'error');
+      });
+    };
+    queueMicrotask(() => {
+      if (isWorkspaceInitializing) return;
+      if (!activeWorkspace) { setInvoices([]); setIsLoading(false); return; }
+      setIsLoading(true);
+      api.invoices.list(activeWorkspace.id).then(data => {
+        if (!cancelled) setInvoices(data.length || activeWorkspace.id !== 'ws-demo-astrix' ? data : MOCK_INVOICES);
+      }).catch(error => {
+        if (!cancelled) {
+          setInvoices([]);
+          addToast(error instanceof Error ? error.message : 'Could not load invoices.', 'error');
+        }
+      }).finally(() => { if (!cancelled) setIsLoading(false); });
+    });
+    window.addEventListener('data-updated', reload);
+    return () => { cancelled = true; window.removeEventListener('data-updated', reload); };
+  }, [activeWorkspace, isWorkspaceInitializing, addToast]);
 
   const formatCurrency = (value: number, currency = 'USD') => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value);
   };
 
   const handlePauseAI = (id: string) => {
-    setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status: 'paused' as const } : inv));
-    addToast('AI paused for this invoice. You can resume anytime.', 'success');
+    if (!window.confirm('Pause reminder activity for this invoice?')) return;
+    api.invoices.update(id, { status: 'paused' }).then(() => {
+      setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status: 'paused' as const } : inv));
+      addToast('AI paused for this invoice. You can resume anytime.', 'success');
+      triggerUpdate();
+    }).catch(error => addToast(error instanceof Error ? error.message : 'Could not pause invoice.', 'error'));
   };
 
   const handleResumeAI = (id: string) => {
-    setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status: 'pending' as const } : inv));
-    addToast('AI resumed. Next reminder scheduled in 3 days.', 'success');
+    if (!window.confirm('Resume reminder activity for this invoice?')) return;
+    api.invoices.update(id, { status: 'pending' }).then(() => {
+      setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status: 'pending' as const } : inv));
+      addToast('AI resumed. Next reminder scheduled in 3 days.', 'success');
+      triggerUpdate();
+    }).catch(error => addToast(error instanceof Error ? error.message : 'Could not resume invoice.', 'error'));
+  };
+
+  const exportCsv = () => {
+    const headers = ['Client', 'Email', 'Amount', 'Currency', 'Due Date', 'Status', 'Days Overdue', 'Reminders'];
+    const rows = filteredInvoices.map(invoice => [
+      invoice.client_name, invoice.client_email, invoice.amount, invoice.currency,
+      invoice.due_date, invoice.status, invoice.days_overdue, invoice.reminder_count,
+    ]);
+    const csv = [headers, ...rows].map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `astrix-invoices-${invoiceFilter}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    addToast(`Exported ${filteredInvoices.length} invoice${filteredInvoices.length === 1 ? '' : 's'}.`, 'success');
   };
 
   const getStatusBadge = (status: Invoice['status'], aiStatus: Invoice['ai_status']) => {
@@ -91,7 +136,7 @@ export const Invoices = () => {
   return (
     <AppLayout 
       title="Action Center" 
-      subtitle="Manage your invoices and AI schedules"
+      subtitle="Manage your invoices and reminder schedules"
       actions={
         <button
           onClick={() => window.dispatchEvent(new CustomEvent('open-upload-modal'))}
@@ -129,7 +174,7 @@ export const Invoices = () => {
               {invoiceFilter === 'all' ? 'All Invoices' : `${invoiceFilter.charAt(0).toUpperCase() + invoiceFilter.slice(1)} Invoices`}
             </h2>
             <div className="flex gap-2">
-               <button className="flex items-center gap-2 bg-white text-gray-700 border border-gray-200 px-3 py-2 rounded-lg text-xs font-bold hover:bg-gray-50 transition-colors">
+               <button onClick={exportCsv} aria-label="Export filtered invoices as CSV" className="flex items-center gap-2 bg-white text-gray-700 border border-gray-200 px-3 py-2 rounded-lg text-xs font-bold hover:bg-gray-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-astrix-teal">
                 <FileText className="w-3.5 h-3.5" /> Export CSV
               </button>
             </div>
@@ -189,7 +234,12 @@ export const Invoices = () => {
                             <Pause className="w-3 h-3" /> Pause AI
                           </button>
                         )}
-                        <button className="p-2 text-gray-400 hover:text-gray-700 transition-colors rounded-lg hover:bg-gray-100">
+                        <button
+                          type="button"
+                          onClick={() => addToast(`${invoice.client_name}: ${formatCurrency(invoice.amount, invoice.currency)} is ${invoice.status}. Detailed invoice view is planned for the production backend.`, 'success')}
+                          aria-label={`View details for ${invoice.client_name}`}
+                          className="p-2 text-gray-400 hover:text-gray-700 transition-colors rounded-lg hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-astrix-teal"
+                        >
                           <Eye className="w-4 h-4" />
                         </button>
                       </div>
