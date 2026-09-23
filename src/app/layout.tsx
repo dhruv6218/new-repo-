@@ -4,7 +4,7 @@ import { Providers } from '../components/Providers';
 import { Analytics } from '../components/Analytics';
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://astrix.ai'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://astrixai.app'),
   title: 'Astrix AI — Autonomous B2B Revenue Recovery',
   description: 'Get your late B2B invoices paid automatically without the awkward follow-ups. AI-powered recovery for freelancers and agencies.',
   keywords: ['invoice recovery', 'B2B payments', 'AI invoicing', 'automated follow-up', 'Astrix AI'],

@@ -2,12 +2,13 @@
 
 import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AuthLayout } from '../layouts/AuthLayout';
-import { Loader2, AlertCircle, Sparkles, CheckCircle } from 'lucide-react';
+import { Loader2, AlertCircle, Sparkles, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 function SignupForm() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const isDemo = searchParams?.get('demo') === 'true';
   const { signUp, signInWithGoogle } = useAuth();
@@ -19,6 +20,8 @@ function SignupForm() {
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [agreedTerms, setAgreedTerms] = useState(false);
 
   const handleGoogleSignup = async () => {
@@ -35,17 +38,23 @@ function SignupForm() {
       setError('Please agree to the Terms and Privacy Policy.');
       return;
     }
+    if (password && password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
     setIsLoading(true);
     setError(null);
 
-    const { error: signUpError } = await signUp(email, 'magiclink', name);
+    const { error: signUpError, needsConfirmation } = await signUp(email, 'password', name, password);
 
     setIsLoading(false);
 
     if (signUpError) {
       setError(signUpError);
-    } else {
+    } else if (needsConfirmation) {
       setSent(true);
+    } else {
+      router.push('/onboarding/step-1');
     }
   };
 
@@ -146,7 +155,29 @@ function SignupForm() {
                 />
               </div>
 
-              <p className="text-xs text-gray-500">We&apos;ll email you a secure magic link to finish creating your account. No password required.</p>
+              <div>
+                <label className="block text-sm font-bold text-gray-900 mb-1.5" htmlFor="password">Password</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    id="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:bg-white focus:ring-4 focus:ring-brand-blue/20 focus:border-brand-blue block p-3.5 pr-11 transition-all duration-300 outline-none placeholder-gray-400"
+                    placeholder="Create a strong password (min 6 chars)"
+                    required
+                    minLength={6}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+              </div>
 
               <div className="flex items-start pt-2">
                 <div className="flex items-center h-5">

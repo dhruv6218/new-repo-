@@ -38,7 +38,7 @@ export const OneClickCheckoutSection = () => {
           <div className="relative">
             <Quote className="absolute -top-4 -left-4 md:-top-6 md:-left-6 w-12 h-12 md:w-16 md:h-16 text-gray-100" />
             <p className="text-lg md:text-2xl text-gray-700 font-medium leading-relaxed relative z-10 italic">
-              "Hey! Just wanted to follow up on Invoice #1042. Let me know if you have any questions — happy to hop on a quick call. Here's a link to pay instantly: pay.astrix.ai/1042"
+              "Hey! Just wanted to follow up on Invoice #1042. Let me know if you have any questions — happy to hop on a quick call. Here's a link to pay instantly: pay.astrixai.app/1042"
             </p>
           </div>
 

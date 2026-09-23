@@ -18,7 +18,7 @@ export interface Session {
 
 const DEMO_USER: User = {
   id: 'demo-user',
-  email: 'demo@astrix.ai',
+  email: 'demo@astrixai.app',
   user_metadata: { full_name: 'Demo User' },
   created_at: '2024-01-01T00:00:00.000Z',
 };
@@ -137,8 +137,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error: error ? errorMessage(error) : null };
   };
 
-  const signUp = async (email: string, _method?: string, name?: string) => {
+  const signUp = async (email: string, _method?: string, name?: string, password?: string) => {
     if (!supabase) return { error: 'Authentication is not configured. Please set the Supabase environment variables.', needsConfirmation: false };
+    if (password) {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${origin()}/auth/confirm?next=/onboarding/step-1`,
+          data: name ? { full_name: name } : undefined,
+        },
+      });
+      if (error) return { error: errorMessage(error), needsConfirmation: false };
+      return { error: null, needsConfirmation: !data.session };
+    }
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {

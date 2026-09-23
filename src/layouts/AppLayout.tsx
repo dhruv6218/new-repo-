@@ -28,7 +28,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, title, subtitle,
   const { addToast } = useToast();
   
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  
+  const [showNotifications, setShowNotifications] = useState(false);
   const [globalAnnouncement, setGlobalAnnouncement] = useState('');
 
   useEffect(() => {
@@ -238,9 +238,44 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, title, subtitle,
             </Link>
             {actions && <div className="hidden sm:block">{actions}</div>}
             <div className="h-6 w-[1px] bg-gray-200 mx-1 hidden sm:block"></div>
-            <button aria-label="Notifications" className="text-gray-400 hover:text-gray-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-astrix-teal rounded-full p-1.5 relative">
-              <Bell className="w-5 h-5" />
-            </button>
+            <div className="relative">
+              <button 
+                aria-label="Notifications" 
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="text-gray-400 hover:text-gray-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-astrix-teal rounded-full p-1.5 relative cursor-pointer"
+              >
+                <Bell className="w-5 h-5" />
+                <span className="absolute top-1 right-1 w-2 h-2 bg-brand-blue rounded-full"></span>
+              </button>
+
+              {showNotifications && (
+                <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-2xl shadow-xl p-4 z-50 animate-[fadeIn_0.15s_ease-out]">
+                  <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                    <h3 className="font-heading font-bold text-sm text-gray-900">Notifications</h3>
+                    <Link 
+                      href="/app/settings?tab=notifications" 
+                      onClick={() => setShowNotifications(false)}
+                      className="text-[11px] text-brand-blue hover:underline font-bold"
+                    >
+                      Settings
+                    </Link>
+                  </div>
+                  <div className="py-3 space-y-3">
+                    <div className="p-2.5 bg-blue-50/60 rounded-xl text-xs text-gray-700">
+                      <span className="font-bold text-brand-blue block mb-0.5">🤖 AI Recovery Engine Ready</span>
+                      Daily autonomous chase scheduled for pending invoices.
+                    </div>
+                    <div className="p-2.5 bg-green-50/60 rounded-xl text-xs text-gray-700">
+                      <span className="font-bold text-green-700 block mb-0.5">⚡ 1-Click Checkout Active</span>
+                      Stripe, Razorpay, and custom links ready for instant reconciliation.
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t border-gray-100 text-center">
+                    <span className="text-[10px] text-gray-400 font-mono">Preferences synced with Settings</span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 

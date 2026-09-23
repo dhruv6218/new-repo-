@@ -56,9 +56,9 @@ export const ToneStudio = () => {
     }
     window.setTimeout(() => {
       const previews: Record<number, string> = {
-        1: `Hey Sarah! Hope you're doing well.\n\nJust a quick heads-up — Invoice #1042 for $2,400 was due on Jan 1st. Totally understand things get busy, but wanted to make sure this didn't slip through the cracks.\n\nHere's a quick link if you'd like to sort it now: pay.astrix.ai/1042\n\nThanks so much! 😊`,
-        2: `Hi Sarah,\n\nFollowing up on Invoice #1042 ($2,400) — it's now 14 days past due.\n\nI'd appreciate if you could process this at your earliest convenience. You can pay instantly here: pay.astrix.ai/1042\n\nLet me know if there are any issues.\n\nBest,`,
-        3: `Sarah,\n\nThis is my third follow-up regarding Invoice #1042 for $2,400, now 14 days overdue.\n\nImmediate payment is required. Please use the link below to settle this today: pay.astrix.ai/1042\n\nIf payment is not received within 48 hours, I will need to consider escalation options.\n\nRegards,`,
+        1: `Hey Sarah! Hope you're doing well.\n\nJust a quick heads-up — Invoice #1042 for $2,400 was due on Jan 1st. Totally understand things get busy, but wanted to make sure this didn't slip through the cracks.\n\nHere's a quick link if you'd like to sort it now: pay.astrixai.app/1042\n\nThanks so much! 😊`,
+        2: `Hi Sarah,\n\nFollowing up on Invoice #1042 ($2,400) — it's now 14 days past due.\n\nI'd appreciate if you could process this at your earliest convenience. You can pay instantly here: pay.astrixai.app/1042\n\nLet me know if there are any issues.\n\nBest,`,
+        3: `Sarah,\n\nThis is my third follow-up regarding Invoice #1042 for $2,400, now 14 days overdue.\n\nImmediate payment is required. Please use the link below to settle this today: pay.astrixai.app/1042\n\nIf payment is not received within 48 hours, I will need to consider escalation options.\n\nRegards,`,
       };
       setGeneratedPreview(previews[toneLevel] || previews[2]);
       setIsGeneratingPreview(false);

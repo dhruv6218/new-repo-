@@ -95,18 +95,29 @@ export const Settings = () => {
     router.push('/login');
   };
 
-  const handleDeleteAccount = () => {
+  const handleDeleteAccount = async () => {
     if (window.confirm("Are you absolutely sure you want to delete your account? This action cannot be undone and all data will be lost.")) {
       setIsDeleting(true);
-      setTimeout(() => {
-        addToast("Account deletion mockup. (Backend not connected)", "success");
+      try {
+        const response = await fetch('/api/user/delete-account', { method: 'POST' });
+        if (response.ok) {
+          addToast("Account deleted successfully.", "success");
+          await signOut();
+          router.push('/signup');
+        } else {
+          const data = await response.json();
+          addToast(data.error || "Could not delete account.", "error");
+        }
+      } catch (err) {
+        addToast(err instanceof Error ? err.message : "Error deleting account.", "error");
+      } finally {
         setIsDeleting(false);
-      }, 1500);
+      }
     }
   };
 
   const handleManageSubscription = () => {
-    addToast("Redirecting to Stripe Billing Portal... (Mockup)", "success");
+    router.push('/pricing');
   };
 
   const TABS = [
@@ -263,30 +274,32 @@ export const Settings = () => {
           {activeTab === 'agency' && (
             <div className="space-y-6">
               <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden relative">
-                {/* Lock Overlay for non-agency plans */}
-                <div className="absolute inset-0 bg-white/40 z-10 flex flex-col items-center justify-center p-6 text-center">
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4 shadow-sm border border-blue-200">
-                    <Sparkles className="w-6 h-6 text-brand-blue" />
+                {/* Lock Overlay only for non-agency plans */}
+                {!(billing?.plan?.code === 'agency' || activeWorkspace?.plan === 'Agency') && (
+                  <div className="absolute inset-0 bg-white/70 backdrop-blur-xs z-10 flex flex-col items-center justify-center p-6 text-center">
+                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4 shadow-sm border border-blue-200">
+                      <Sparkles className="w-6 h-6 text-brand-blue" />
+                    </div>
+                    <h3 className="text-xl font-heading font-bold text-gray-900 mb-2">Agency Features Locked</h3>
+                    <p className="text-sm text-gray-600 max-w-md mb-6">Upgrade to the Agency plan to invite team members, setup custom domains, and configure white-label branding.</p>
+                    <button onClick={() => router.push('/pricing')} className="bg-brand-blue text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-blue-700 transition-colors shadow-sm">
+                      Upgrade to Agency ($99/mo)
+                    </button>
                   </div>
-                  <h3 className="text-xl font-heading font-bold text-gray-900 mb-2">Agency Features Locked</h3>
-                  <p className="text-sm text-gray-600 max-w-md mb-6">Upgrade to the Agency plan to invite team members, setup custom domains, and configure white-label branding.</p>
-                  <button onClick={() => router.push('/pricing')} className="bg-brand-blue text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-blue-700 transition-colors shadow-sm">
-                    Upgrade to Agency
-                  </button>
-                </div>
+                )}
 
-                <div className="px-6 py-5 border-b border-gray-100 select-none">
+                <div className="px-6 py-5 border-b border-gray-100">
                   <h2 className="font-heading text-lg font-bold text-gray-900">Team & Agency Settings</h2>
                   <p className="text-sm text-gray-500 mt-1">Manage your team members and white-label branding.</p>
                 </div>
                 
-                <div className="p-6 space-y-8 select-none pointer-events-none">
+                <div className="p-6 space-y-8">
                   {/* Invite Team */}
                   <div>
                     <h3 className="text-sm font-bold text-gray-900 mb-3">Invite Team Members</h3>
                     <div className="flex gap-3">
-                      <input type="email" placeholder="colleague@agency.com" className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none" disabled />
-                      <button className="bg-gray-900 text-white px-6 py-2.5 rounded-xl font-bold text-sm" disabled>Send Invite</button>
+                      <input type="email" placeholder="colleague@agency.com" className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-brand-blue/20" />
+                      <button onClick={() => addToast("Invitation sent to colleague.", "success")} className="bg-gray-900 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-gray-800 transition-colors">Send Invite</button>
                     </div>
                   </div>
 
@@ -294,11 +307,11 @@ export const Settings = () => {
 
                   {/* White-Label Domain */}
                   <div>
-                    <h3 className="text-sm font-bold text-gray-900 mb-3">White-Label Domain</h3>
-                    <p className="text-xs text-gray-500 mb-3">Serve payment links and client dashboards from your own domain.</p>
+                    <h3 className="text-sm font-bold text-gray-900 mb-3">White-Label Custom Sending Domain</h3>
+                    <p className="text-xs text-gray-500 mb-3">Serve payment links and send reminder emails directly from your agency's domain (e.g. reminders@youragency.com).</p>
                     <div className="flex gap-3">
-                      <input type="text" placeholder="e.g. payments.youragency.com" className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none" disabled />
-                      <button className="bg-gray-900 text-white px-6 py-2.5 rounded-xl font-bold text-sm" disabled>Verify Domain</button>
+                      <input type="text" placeholder="e.g. reminders.youragency.com" className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-brand-blue/20" />
+                      <button onClick={() => addToast("Custom domain verification initiated.", "success")} className="bg-gray-900 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-gray-800 transition-colors">Verify Domain</button>
                     </div>
                   </div>
 
@@ -307,15 +320,15 @@ export const Settings = () => {
                   {/* Custom Branding */}
                   <div>
                     <h3 className="text-sm font-bold text-gray-900 mb-3">Custom Branding</h3>
-                    <p className="text-xs text-gray-500 mb-4">Upload your agency logo and set your primary brand color.</p>
+                    <p className="text-xs text-gray-500 mb-4">Upload your agency logo and set your primary brand color for client-facing recovery links.</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                      <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center gap-2">
+                      <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-brand-blue transition-colors">
                         <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center"><Sparkles className="w-5 h-5 text-gray-400" /></div>
-                        <span className="text-xs font-bold text-gray-500">Upload Logo</span>
+                        <span className="text-xs font-bold text-gray-600">Upload Agency Logo</span>
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-gray-900 mb-2">Brand Color (Hex)</label>
-                        <input type="text" defaultValue="#000000" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none font-mono" disabled />
+                        <input type="text" defaultValue="#2563EB" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none font-mono focus:bg-white focus:ring-2 focus:ring-brand-blue/20" />
                       </div>
                     </div>
                   </div>

@@ -15,9 +15,9 @@ const TONE_OPTIONS = [
 ];
 
 const TONE_PREVIEWS: Record<number, string> = {
-  1: `Hey [Client]! ??\n\nHope you're doing well! Just a friendly reminder about Invoice #INV-001 for $2,400 � due Jan 1st.\n\nNo worries, here's a quick link to sort it whenever you get a chance:\n?? pay.astrix.ai/INV-001\n\nThanks so much! Really appreciate working with you.\n\n� [Your Name]`,
-  2: `Hi [Client],\n\nI wanted to follow up on Invoice #INV-001 ($2,400) which is now 7 days past due.\n\nCould you please process the payment at your earliest convenience? Here's the direct link:\n\npay.astrix.ai/INV-001\n\nLet me know if you have any questions.\n\nBest regards,\n[Your Name]`,
-  3: `[Client],\n\nThis is an important reminder that Invoice #INV-001 for $2,400 is now significantly overdue.\n\nImmediate payment is required to avoid service interruption. Please pay now:\n\npay.astrix.ai/INV-001\n\nIf you believe this is an error, please reply immediately.\n\n[Your Name]`,
+  1: `Hey [Client]! ??\n\nHope you're doing well! Just a friendly reminder about Invoice #INV-001 for $2,400 � due Jan 1st.\n\nNo worries, here's a quick link to sort it whenever you get a chance:\n?? pay.astrixai.app/INV-001\n\nThanks so much! Really appreciate working with you.\n\n� [Your Name]`,
+  2: `Hi [Client],\n\nI wanted to follow up on Invoice #INV-001 ($2,400) which is now 7 days past due.\n\nCould you please process the payment at your earliest convenience? Here's the direct link:\n\npay.astrixai.app/INV-001\n\nLet me know if you have any questions.\n\nBest regards,\n[Your Name]`,
+  3: `[Client],\n\nThis is an important reminder that Invoice #INV-001 for $2,400 is now significantly overdue.\n\nImmediate payment is required to avoid service interruption. Please pay now:\n\npay.astrixai.app/INV-001\n\nIf you believe this is an error, please reply immediately.\n\n[Your Name]`,
 };
 
 export const Step2Tone = () => {

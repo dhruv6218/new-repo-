@@ -5,7 +5,7 @@ import { AppLayout } from '../../layouts/AppLayout';
 import { Send, Sparkles, User, Loader2, Bot } from 'lucide-react';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { api } from '../../lib/api';
-import type { Opportunity, Account, Decision, Invoice } from '../../types';
+import type { Invoice, GatewaySettings, ToneSettings, ActivityItem } from '../../types';
 
 interface Message {
   id: string;
@@ -25,18 +25,18 @@ export const Assistant = () => {
       role: 'assistant',
       content: (
         <div className="space-y-2">
-          <p>Hello! I&apos;m your Astrix Assistant. I can help you query your workspace data.</p>
-          <p className="text-sm text-gray-500">Try asking me about opportunities, affected accounts, or recent decisions.</p>
+          <p>Hello! I&apos;m your Astrix AI Autonomous Recovery Assistant.</p>
+          <p className="text-sm text-gray-500">Ask me anything about overdue invoices, chase statuses, recovery metrics, or connected payment gateways.</p>
         </div>
       )
     }
   ]);
 
   const suggestions = [
-    "Show top 3 opportunities",
-    "Which accounts are affected by SAML SSO?",
-    "What was the verdict on the last launch?",
-    "Show decisions marked Build"
+    "Show pending & overdue invoices",
+    "What is our total recovered revenue?",
+    "Which payment gateways are active?",
+    "What is our current chase tone setting?"
   ];
 
   const scrollToBottom = () => {
@@ -56,67 +56,99 @@ export const Assistant = () => {
     setIsTyping(true);
 
     let responseContent: React.ReactNode =
-      "I couldn't find specific data for that query in your workspace.";
+      "I couldn't find specific invoice data for that query in your workspace.";
 
     if (!activeWorkspace?.id) {
-      responseContent = 'Select a workspace first, then ask your query.';
+      responseContent = 'Please select a workspace first.';
     } else {
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise(r => setTimeout(r, 600));
       const lower = text.toLowerCase();
-      let innerContent: React.ReactNode = 'No matching results found in workspace data.';
+      let innerContent: React.ReactNode = 'No matching data found in workspace.';
 
-      if (lower.includes('opportunit')) {
-        const opps: Opportunity[] = await api.opportunities.list(activeWorkspace.id);
-        if (opps.length > 0) {
-          innerContent = (
-            <div className="space-y-2">
-              <p className="font-bold text-gray-900 mb-2">Top {Math.min(3, opps.length)} Opportunities:</p>
-              {opps.slice(0, 3).map((opp: Opportunity, idx: number) => (
-                <div key={idx} className="p-3 bg-white border border-gray-200 rounded-xl">
-                  <div className="text-xs text-gray-700">
-                    <span className="font-bold text-gray-900">{opp.problems?.title}:</span> Score {opp.opportunity_score}, Recommended: {opp.recommended_action}
-                  </div>
+      if (lower.includes('gateway') || lower.includes('stripe') || lower.includes('razorpay')) {
+        const gateways: GatewaySettings[] = await api.gateways.list(activeWorkspace.id);
+        const active = gateways.filter(g => g.is_active);
+        innerContent = (
+          <div className="space-y-2">
+            <p className="font-bold text-gray-900 mb-1">Payment Gateways ({gateways.length} total, {active.length} active):</p>
+            {gateways.length === 0 ? (
+              <p className="text-xs text-gray-500">No payment gateways connected yet. Connect Stripe or Razorpay in Integrations.</p>
+            ) : (
+              gateways.map((g, idx) => (
+                <div key={idx} className="p-3 bg-white border border-gray-200 rounded-xl flex justify-between items-center text-xs">
+                  <span className="font-bold text-gray-900 capitalize">{g.label || g.type}</span>
+                  <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] ${g.is_active ? 'bg-emerald-50 text-emerald-700 font-bold' : 'bg-gray-100 text-gray-500'}`}>
+                    {g.is_active ? 'Active' : 'Inactive'}
+                  </span>
                 </div>
-              ))}
+              ))
+            )}
+          </div>
+        );
+      } else if (lower.includes('tone') || lower.includes('voice') || lower.includes('nudge')) {
+        const tone: ToneSettings | null = await api.tone.get(activeWorkspace.id);
+        const levelName = tone?.tone_level === 1 ? 'Friendly Nudge' : tone?.tone_level === 3 ? 'Firm Escalation' : 'Professional Diplomatic';
+        innerContent = (
+          <div className="space-y-2 text-xs">
+            <p className="font-bold text-gray-900">Current AI Chasing Configuration:</p>
+            <div className="p-3 bg-white border border-gray-200 rounded-xl space-y-1">
+              <p><span className="font-bold text-gray-700">Tone Level:</span> {tone?.tone_level ?? 2} ({levelName})</p>
+              {tone?.ai_prompt && <p><span className="font-bold text-gray-700">Custom Directives:</span> {tone.ai_prompt}</p>}
             </div>
-          );
-        }
-      } else if (lower.includes('account')) {
-        const accounts: Account[] = await api.accounts.list(activeWorkspace.id);
-        if (accounts.length > 0) {
-          innerContent = (
-            <div className="space-y-2">
-              <p className="font-bold text-gray-900 mb-2">Accounts ({accounts.length}):</p>
-              {accounts.slice(0, 5).map((acc: Account, idx: number) => (
-                <div key={idx} className="p-3 bg-white border border-gray-200 rounded-xl">
-                  <div className="text-xs text-gray-700">
-                    <span className="font-bold text-gray-900">{acc.name}:</span> ARR ${acc.arr.toLocaleString()}, Plan: {acc.plan || 'Standard'}
-                  </div>
-                </div>
-              ))}
+          </div>
+        );
+      } else if (lower.includes('recover') || lower.includes('metric') || lower.includes('stat') || lower.includes('total')) {
+        const dashboardData = await api.dashboard.get(activeWorkspace.id);
+        const { metrics } = dashboardData;
+        innerContent = (
+          <div className="space-y-2 text-xs">
+            <p className="font-bold text-gray-900">Workspace Recovery Summary:</p>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                <span className="text-[10px] text-emerald-700 uppercase font-bold block">Total Recovered</span>
+                <span className="text-base font-bold text-emerald-900">${metrics.total_recovered.toLocaleString()}</span>
+              </div>
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                <span className="text-[10px] text-amber-700 uppercase font-bold block">Outstanding</span>
+                <span className="text-base font-bold text-amber-900">${metrics.currently_outstanding.toLocaleString()}</span>
+              </div>
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                <span className="text-[10px] text-blue-700 uppercase font-bold block">Recovery Rate</span>
+                <span className="text-base font-bold text-blue-900">{metrics.recovery_rate}%</span>
+              </div>
+              <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl">
+                <span className="text-[10px] text-purple-700 uppercase font-bold block">Active Chases</span>
+                <span className="text-base font-bold text-purple-900">{metrics.active_chases}</span>
+              </div>
             </div>
-          );
-        }
-      } else if (lower.includes('decision')) {
-        const decisions: Decision[] = await api.decisions.list(activeWorkspace.id);
-        if (decisions.length > 0) {
-          innerContent = (
-            <div className="space-y-2">
-              <p className="font-bold text-gray-900 mb-2">Recent Decisions:</p>
-              {decisions.slice(0, 3).map((dec: Decision, idx: number) => (
-                <div key={idx} className="p-3 bg-white border border-gray-200 rounded-xl">
-                  <div className="text-xs text-gray-700">
-                    <span className="font-bold text-gray-900">{dec.title}:</span> Action: {dec.action}
-                  </div>
-                </div>
-              ))}
-            </div>
-          );
-        }
+          </div>
+        );
       } else {
         const invoices: Invoice[] = await api.invoices.list(activeWorkspace.id);
         const pending = invoices.filter((i: Invoice) => i.status === 'pending');
-        innerContent = `You have ${pending.length} pending invoices totaling $${pending.reduce((s: number, i: Invoice) => s + i.amount, 0).toLocaleString()}.`;
+        const paid = invoices.filter((i: Invoice) => i.status === 'paid');
+        const overdue = pending.filter((i: Invoice) => i.days_overdue > 0);
+        innerContent = (
+          <div className="space-y-2 text-xs">
+            <p className="font-bold text-gray-900">Invoice Overview:</p>
+            <p className="text-gray-700">
+              You have <span className="font-bold text-amber-600">{pending.length} pending invoices</span> totaling <span className="font-bold">${pending.reduce((s, i) => s + i.amount, 0).toLocaleString()}</span>, of which <span className="font-bold text-red-600">{overdue.length} are overdue</span>.
+            </p>
+            {pending.length > 0 && (
+              <div className="space-y-1.5 mt-2">
+                {pending.slice(0, 4).map((inv, idx) => (
+                  <div key={idx} className="p-2.5 bg-white border border-gray-200 rounded-xl flex justify-between items-center">
+                    <div>
+                      <p className="font-bold text-gray-900">{inv.client_name}</p>
+                      <p className="text-[10px] text-gray-500">{inv.days_overdue} days overdue &bull; {inv.reminder_count} reminders sent</p>
+                    </div>
+                    <span className="font-mono font-bold text-gray-900">${inv.amount.toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
       }
 
       responseContent = innerContent;

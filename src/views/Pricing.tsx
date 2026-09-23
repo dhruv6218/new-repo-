@@ -101,13 +101,33 @@ export const Pricing = () => {
       return;
     }
 
+    if (tier.name.toLowerCase() === 'hook') {
+      router.push('/app');
+      return;
+    }
+
     setLoadingTier(tier.name);
-    
-    setTimeout(() => {
-      setLoadingTier(null);
-      addToast(`Redirecting to checkout for ${tier.name} plan...`, "success");
+    try {
+      const planCode = tier.name.toLowerCase() === 'solo' ? 'solo' : 'agency';
+      const interval = isAnnual ? 'yearly' : 'monthly';
+      const response = await fetch('/api/billing/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ planCode, interval, workspaceId: activeWorkspace.id }),
+      });
+      const data = await response.json();
+      if (response.ok && data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      } else {
+        addToast(data.error || `Navigating to billing settings for ${tier.name}...`, "warning");
+        router.push('/app/settings?tab=billing');
+      }
+    } catch {
+      addToast(`Navigating to billing settings for ${tier.name}...`, "warning");
       router.push('/app/settings?tab=billing');
-    }, 1500);
+    } finally {
+      setLoadingTier(null);
+    }
   };
 
   return (

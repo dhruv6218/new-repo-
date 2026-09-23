@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Invoice, GatewaySettings, ToneSettings, ActivityItem, AdminUser,
-  Account, Signal, Problem, Opportunity, Decision, Artifact, Launch, DashboardMetrics,
+  Invoice, GatewaySettings, ToneSettings, ActivityItem, AdminUser, DashboardMetrics,
 } from '../types';
 import { createSupabaseBrowserClient } from './supabase/client';
 
@@ -15,13 +14,6 @@ const KEYS = {
   ACTIVITY: 'astrix_activity',
   WORKSPACE: 'astrix_demo_workspace',
   ADMIN_USERS: 'astrix_admin_users',
-  ACCOUNTS: 'astrix_accounts',
-  SIGNALS: 'astrix_signals',
-  PROBLEMS: 'astrix_problems',
-  OPPORTUNITIES: 'astrix_opportunities',
-  DECISIONS: 'astrix_decisions',
-  ARTIFACTS: 'astrix_artifacts',
-  LAUNCHES: 'astrix_launches',
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -129,60 +121,6 @@ export const initializeWorkspace = (workspaceId: string) => {
     { id: genId(), email: 'anna@studio.com', full_name: 'Anna Mueller', plan: 'Solo', credits_used: 0, status: 'suspended', created_at: daysAgo(60), invoice_count: 0, total_recovered: 0 },
   ];
   setStorage(KEYS.ADMIN_USERS, sampleAdminUsers);
-
-  // ── Accounts ──
-  const sampleAccounts: Account[] = [
-    { id: genId(), workspace_id: workspaceId, name: 'Acme Corp', domain: 'acme.com', arr: 120000, plan: 'Enterprise', health_score: 82, renewal_date: daysAgo(-60), signal_count: 4 },
-    { id: genId(), workspace_id: workspaceId, name: 'TechStart GmbH', domain: 'techstart.de', arr: 48000, plan: 'Pro', health_score: 45, renewal_date: daysAgo(-30), signal_count: 3 },
-    { id: genId(), workspace_id: workspaceId, name: 'DataFlow Ltd', domain: 'dataflow.co', arr: 24000, plan: 'Standard', health_score: 30, renewal_date: daysAgo(-90), signal_count: 1 },
-    { id: genId(), workspace_id: workspaceId, name: 'InnovateLab', domain: 'innovatelab.com', arr: 36000, plan: 'Pro', health_score: 90, renewal_date: daysAgo(-120), signal_count: 0 },
-  ];
-  setStorage(KEYS.ACCOUNTS, sampleAccounts);
-
-  // ── Signals ──
-  const sampleSignals: Signal[] = [
-    { id: genId(), workspace_id: workspaceId, raw_text: 'We really need SAML SSO to integrate with our corporate IDP. Without it, our security team won\'t approve renewal.', normalized_text: 'User is requesting SAML SSO integration to comply with internal security policies.', source_type: 'Support Ticket', severity_label: 'Critical', sentiment_label: 'Negative', product_area: 'Authentication', account_id: sampleAccounts[0].id, created_at: isoDaysAgo(3), accounts: { name: 'Acme Corp', arr: 120000, plan: 'Enterprise' } },
-    { id: genId(), workspace_id: workspaceId, raw_text: 'The export to CSV feature is broken. I get a 500 error every time I try to download my reports.', normalized_text: 'CSV export feature is failing with a 500 error.', source_type: 'Email', severity_label: 'High', sentiment_label: 'Negative', product_area: 'Reporting', account_id: sampleAccounts[1].id, created_at: isoDaysAgo(5), accounts: { name: 'TechStart GmbH', arr: 48000, plan: 'Pro' } },
-    { id: genId(), workspace_id: workspaceId, raw_text: 'Love the new dashboard layout! Much easier to navigate than the old one.', normalized_text: 'Positive feedback on new dashboard layout.', source_type: 'Manual', severity_label: 'Low', sentiment_label: 'Positive', product_area: 'Core UI', account_id: sampleAccounts[2].id, created_at: isoDaysAgo(7), accounts: { name: 'DataFlow Ltd', arr: 24000, plan: 'Standard' } },
-    { id: genId(), workspace_id: workspaceId, raw_text: 'SAML SSO is a dealbreaker for us. We\'re evaluating competitors who offer it out of the box.', normalized_text: 'User is churning due to missing SAML SSO.', source_type: 'Support Ticket', severity_label: 'Critical', sentiment_label: 'Negative', product_area: 'Authentication', account_id: sampleAccounts[0].id, created_at: isoDaysAgo(10), accounts: { name: 'Acme Corp', arr: 120000, plan: 'Enterprise' } },
-    { id: genId(), workspace_id: workspaceId, raw_text: 'The API rate limits are too low for our usage. We need at least 10k requests per hour.', normalized_text: 'User requests higher API rate limits.', source_type: 'Email', severity_label: 'Medium', sentiment_label: 'Neutral', product_area: 'API', account_id: sampleAccounts[3].id, created_at: isoDaysAgo(12), accounts: { name: 'InnovateLab', arr: 36000, plan: 'Pro' } },
-  ];
-  setStorage(KEYS.SIGNALS, sampleSignals);
-
-  // ── Problems ──
-  const sampleProblems: Problem[] = [
-    { id: genId(), workspace_id: workspaceId, title: 'SAML SSO Integration Missing', description: 'Multiple enterprise accounts are requesting SAML SSO integration. Two accounts have explicitly stated this is a dealbreaker and are evaluating competitors. Combined ARR at risk is significant.', severity: 'Critical', status: 'Active', product_area: 'Authentication', evidence_count: 2, affected_arr: 120000, trend: 'Rising', created_at: isoDaysAgo(8), users: { full_name: 'AI Cluster Engine' } },
-    { id: genId(), workspace_id: workspaceId, title: 'CSV Export 500 Error', description: 'Users are experiencing a 500 error when attempting to export reports to CSV. This is blocking a core workflow.', severity: 'High', status: 'Active', product_area: 'Reporting', evidence_count: 1, affected_arr: 48000, trend: 'Stable', created_at: isoDaysAgo(6), users: { full_name: 'AI Cluster Engine' } },
-    { id: genId(), workspace_id: workspaceId, title: 'API Rate Limits Too Low', description: 'Pro plan users are hitting API rate limits. Requests for higher limits (10k/hr).', severity: 'Medium', status: 'Active', product_area: 'API', evidence_count: 1, affected_arr: 36000, trend: 'Stable', created_at: isoDaysAgo(11), users: { full_name: 'AI Cluster Engine' } },
-  ];
-  setStorage(KEYS.PROBLEMS, sampleProblems);
-
-  // ── Opportunities ──
-  const sampleOpportunities: Opportunity[] = [
-    { id: genId(), workspace_id: workspaceId, problem_id: sampleProblems[0].id, opportunity_score: 92, demand_score: 85, pain_score: 90, arr_score: 95, trend_score: 80, recommended_action: 'Build', problems: sampleProblems[0] },
-    { id: genId(), workspace_id: workspaceId, problem_id: sampleProblems[1].id, opportunity_score: 78, demand_score: 70, pain_score: 75, arr_score: 65, trend_score: 60, recommended_action: 'Fix', problems: sampleProblems[1] },
-    { id: genId(), workspace_id: workspaceId, problem_id: sampleProblems[2].id, opportunity_score: 64, demand_score: 60, pain_score: 50, arr_score: 55, trend_score: 50, recommended_action: 'Review', problems: sampleProblems[2] },
-  ];
-  setStorage(KEYS.OPPORTUNITIES, sampleOpportunities);
-
-  // ── Decisions ──
-  const sampleDecisions: Decision[] = [
-    { id: genId(), workspace_id: workspaceId, opportunity_id: sampleOpportunities[0].id, problem_id: sampleProblems[0].id, title: 'SAML SSO Integration Missing', action: 'Build', rationale: 'Two enterprise accounts representing $120k ARR have flagged this as a dealbreaker. One is actively evaluating competitors. Building SAML SSO will prevent churn and unlock upsell to other enterprise prospects.', author_id: 'demo-user', created_at: isoDaysAgo(5), users: { full_name: 'Sarah Johnson' } },
-    { id: genId(), workspace_id: workspaceId, opportunity_id: sampleOpportunities[1].id, problem_id: sampleProblems[1].id, title: 'CSV Export 500 Error', action: 'Fix', rationale: 'Core workflow is broken for Pro users. Quick fix — likely a server-side null reference in the export endpoint. Should be patched within 24 hours.', author_id: 'demo-user', created_at: isoDaysAgo(4), users: { full_name: 'Sarah Johnson' } },
-  ];
-  setStorage(KEYS.DECISIONS, sampleDecisions);
-
-  // ── Artifacts ──
-  const sampleArtifacts: Artifact[] = [
-    { id: genId(), workspace_id: workspaceId, decision_id: sampleDecisions[0].id, title: 'Decision Memo: SAML SSO', type: 'decision_memo', content: '# Decision Memo: SAML SSO Integration\n\n## Context\nTwo enterprise accounts (Acme Corp, TechStart GmbH) have flagged missing SAML SSO as a dealbreaker. Combined ARR at risk: $168k.\n\n## Decision\n**Build** SAML SSO integration in Q1.\n\n## Rationale\n- 2 critical signals from enterprise accounts\n- 1 account actively evaluating competitors\n- SAML SSO is table-stakes for enterprise security compliance\n- Estimated effort: 3-4 engineering weeks\n\n## Success Metrics\n- Zero churn from enterprise accounts post-launch\n- 2+ new enterprise deals unlocked within 90 days\n- NPS improvement from enterprise segment', author_id: 'demo-user', created_at: isoDaysAgo(5), updated_at: isoDaysAgo(5), users: { full_name: 'Sarah Johnson' }, decisions: { title: 'SAML SSO Integration Missing' } },
-  ];
-  setStorage(KEYS.ARTIFACTS, sampleArtifacts);
-
-  // ── Launches ──
-  const sampleLaunches: Launch[] = [
-    { id: genId(), workspace_id: workspaceId, decision_id: sampleDecisions[1].id, title: 'CSV Export 500 Error Fix', action: 'Fix', launched_at: isoDaysAgo(3), created_by: 'demo-user', expected_outcome: 'Eliminate 500 errors on CSV export. Reduce support tickets to zero within 7 days.', before_count: 12, after_count: 2, pm_verdict: 'Partially Solved', notes: 'Fixed the primary null reference, but a secondary edge case with large datasets (>10k rows) still fails. Will address in follow-up.' },
-  ];
-  setStorage(KEYS.LAUNCHES, sampleLaunches);
 };
 
 // ─── Invoice API ──────────────────────────────────────────────────────────────
@@ -397,18 +335,33 @@ export const api = {
         api.activity.list(wsId),
       ]);
       if (invoiceResult.error) throw new Error(invoiceResult.error.message);
-      const invoices = invoiceResult.data ?? [];
-      const paid = invoices.filter(invoice => invoice.status === 'paid');
-      const pending = invoices.filter(invoice => invoice.status === 'pending' || invoice.status === 'paused' || invoice.status === 'disputed');
-      const totalRecovered = paid.reduce((sum, invoice) => sum + Number(invoice.total_minor) / 100, 0);
+      const invoices = (invoiceResult.data ?? []) as Array<{
+        status: string;
+        total_minor: number;
+        created_at: string;
+        paid_at: string | null;
+      }>;
+      const paid = invoices.filter((invoice) => invoice.status === 'paid');
+      const pending = invoices.filter((invoice) => invoice.status === 'pending' || invoice.status === 'paused' || invoice.status === 'disputed');
+      const totalRecovered = paid.reduce((sum: number, invoice) => sum + Number(invoice.total_minor) / 100, 0);
+      const currentMonth = new Date().getMonth();
+      const currentYear = new Date().getFullYear();
+      const thisMonthRecovered = paid
+        .filter((invoice) => {
+          if (!invoice.paid_at) return false;
+          const paidDate = new Date(invoice.paid_at);
+          return paidDate.getMonth() === currentMonth && paidDate.getFullYear() === currentYear;
+        })
+        .reduce((sum: number, invoice) => sum + Number(invoice.total_minor) / 100, 0);
+
       return {
         metrics: {
           total_recovered: totalRecovered,
-          currently_outstanding: pending.reduce((sum, invoice) => sum + Number(invoice.total_minor) / 100, 0),
-          active_chases: invoices.filter(invoice => invoice.status === 'pending').length,
+          currently_outstanding: pending.reduce((sum: number, invoice) => sum + Number(invoice.total_minor) / 100, 0),
+          active_chases: invoices.filter((invoice) => invoice.status === 'pending').length,
           recovery_rate: invoices.length ? Math.round((paid.length / invoices.length) * 100) : 0,
           pending_invoices: pending.length,
-          this_month_recovered: paid.filter(invoice => invoice.paid_at && new Date(invoice.paid_at).getMonth() === new Date().getMonth()).reduce((sum, invoice) => sum + Number(invoice.total_minor) / 100, 0),
+          this_month_recovered: thisMonthRecovered,
         },
         activities: activityResult,
       };
@@ -453,130 +406,6 @@ export const api = {
     },
     addCredits: async (id: string, credits: number): Promise<void> => {
       throw new Error(`Credits are not available in the production admin API (${id}, ${credits})`);
-    },
-  },
-
-  // ─── Accounts ──────────────────────────────────────────────────────────────
-  accounts: {
-    list: async (wsId: string): Promise<Account[]> => {
-      return getStorage<Account[]>(KEYS.ACCOUNTS, []).filter(a => a.workspace_id === wsId);
-    },
-    create: async (data: Omit<Account, 'id' | 'signal_count'>): Promise<Account> => {
-      const accounts = getStorage<Account[]>(KEYS.ACCOUNTS, []);
-      const newAcc: Account = { ...data, id: genId(), signal_count: 0 };
-      accounts.push(newAcc);
-      setStorage(KEYS.ACCOUNTS, accounts);
-      triggerUpdate();
-      return newAcc;
-    },
-  },
-
-  // ─── Signals ───────────────────────────────────────────────────────────────
-  signals: {
-    list: async (wsId: string): Promise<Signal[]> => {
-      return getStorage<Signal[]>(KEYS.SIGNALS, []).filter(s => s.workspace_id === wsId);
-    },
-    create: async (data: Omit<Signal, 'id' | 'created_at'>): Promise<Signal> => {
-      const signals = getStorage<Signal[]>(KEYS.SIGNALS, []);
-      const newSig: Signal = { ...data, id: genId(), created_at: new Date().toISOString() };
-      signals.push(newSig);
-      setStorage(KEYS.SIGNALS, signals);
-      triggerUpdate();
-      return newSig;
-    },
-  },
-
-  // ─── Problems ──────────────────────────────────────────────────────────────
-  problems: {
-    list: async (wsId: string): Promise<Problem[]> => {
-      return getStorage<Problem[]>(KEYS.PROBLEMS, []).filter(p => p.workspace_id === wsId);
-    },
-    create: async (data: Omit<Problem, 'id' | 'created_at' | 'evidence_count' | 'affected_arr' | 'trend' | 'status' | 'users'>): Promise<Problem> => {
-      const problems = getStorage<Problem[]>(KEYS.PROBLEMS, []);
-      const newProb: Problem = {
-        ...data,
-        id: genId(),
-        status: 'Active',
-        evidence_count: 0,
-        affected_arr: 0,
-        trend: 'Stable',
-        created_at: new Date().toISOString(),
-      };
-      problems.push(newProb);
-      setStorage(KEYS.PROBLEMS, problems);
-      triggerUpdate();
-      return newProb;
-    },
-  },
-
-  // ─── Opportunities ─────────────────────────────────────────────────────────
-  opportunities: {
-    list: async (wsId: string): Promise<Opportunity[]> => {
-      return getStorage<Opportunity[]>(KEYS.OPPORTUNITIES, []).filter(o => o.workspace_id === wsId);
-    },
-  },
-
-  // ─── Decisions ─────────────────────────────────────────────────────────────
-  decisions: {
-    list: async (wsId: string): Promise<Decision[]> => {
-      return getStorage<Decision[]>(KEYS.DECISIONS, []).filter(d => d.workspace_id === wsId);
-    },
-    create: async (data: Omit<Decision, 'id' | 'created_at' | 'users'>): Promise<Decision> => {
-      const decisions = getStorage<Decision[]>(KEYS.DECISIONS, []);
-      const newDec: Decision = { ...data, id: genId(), created_at: new Date().toISOString(), users: null };
-      decisions.push(newDec);
-      setStorage(KEYS.DECISIONS, decisions);
-      triggerUpdate();
-      return newDec;
-    },
-  },
-
-  // ─── Artifacts ─────────────────────────────────────────────────────────────
-  artifacts: {
-    list: async (wsId: string): Promise<Artifact[]> => {
-      return getStorage<Artifact[]>(KEYS.ARTIFACTS, []).filter(a => a.workspace_id === wsId);
-    },
-    create: async (data: Omit<Artifact, 'id' | 'created_at' | 'updated_at' | 'users'>): Promise<Artifact> => {
-      const artifacts = getStorage<Artifact[]>(KEYS.ARTIFACTS, []);
-      const now = new Date().toISOString();
-      const newArt: Artifact = { ...data, id: genId(), created_at: now, updated_at: now, users: null };
-      artifacts.push(newArt);
-      setStorage(KEYS.ARTIFACTS, artifacts);
-      triggerUpdate();
-      return newArt;
-    },
-    update: async (id: string, data: Partial<Artifact>): Promise<void> => {
-      const artifacts = getStorage<Artifact[]>(KEYS.ARTIFACTS, []);
-      const idx = artifacts.findIndex(a => a.id === id);
-      if (idx !== -1) {
-        artifacts[idx] = { ...artifacts[idx], ...data, updated_at: new Date().toISOString() };
-        setStorage(KEYS.ARTIFACTS, artifacts);
-        triggerUpdate();
-      }
-    },
-  },
-
-  // ─── Launches ───────────────────────────────────────────────────────────────
-  launches: {
-    list: async (wsId: string): Promise<Launch[]> => {
-      return getStorage<Launch[]>(KEYS.LAUNCHES, []).filter(l => l.workspace_id === wsId);
-    },
-    create: async (data: Omit<Launch, 'id'>): Promise<Launch> => {
-      const launches = getStorage<Launch[]>(KEYS.LAUNCHES, []);
-      const newLaunch: Launch = { ...data, id: genId() };
-      launches.push(newLaunch);
-      setStorage(KEYS.LAUNCHES, launches);
-      triggerUpdate();
-      return newLaunch;
-    },
-    update: async (id: string, data: Partial<Launch>): Promise<void> => {
-      const launches = getStorage<Launch[]>(KEYS.LAUNCHES, []);
-      const idx = launches.findIndex(l => l.id === id);
-      if (idx !== -1) {
-        launches[idx] = { ...launches[idx], ...data };
-        setStorage(KEYS.LAUNCHES, launches);
-        triggerUpdate();
-      }
     },
   },
 };
@@ -643,117 +472,4 @@ export const useActivity = () => {
 export const useAdminUsers = () => {
   const { data, isLoading, refetch } = useQuery(async () => api.admin.listUsers(), []);
   return { data: data || [], isLoading, refetch };
-};
-
-// ─── New Hooks ───────────────────────────────────────────────────────────────
-export const useAccounts = (wsId?: string) => {
-  const { data, isLoading } = useQuery(async () => {
-    if (!wsId) return [];
-    return api.accounts.list(wsId);
-  }, [wsId]);
-  return { data: data || [], isLoading };
-};
-
-export const useAccount = (id?: string) => {
-  const { data, isLoading } = useQuery(async () => {
-    if (!id) return null;
-    const accounts = await api.accounts.list('');
-    const account = accounts.find(a => a.id === id);
-    if (!account) return null;
-    const signals = await api.signals.list('');
-    const accountSignals = signals.filter(s => s.account_id === id);
-    const problems = await api.problems.list('');
-    return { account, signals: accountSignals, problems };
-  }, [id]);
-  return { data, isLoading };
-};
-
-export const useSignals = (wsId?: string) => {
-  const { data, isLoading } = useQuery(async () => {
-    if (!wsId) return [];
-    return api.signals.list(wsId);
-  }, [wsId]);
-  return { data: data || [], isLoading };
-};
-
-export const useProblems = (wsId?: string) => {
-  const { data, isLoading, refetch } = useQuery(async () => {
-    if (!wsId) return [];
-    return api.problems.list(wsId);
-  }, [wsId]);
-  return { data: data || [], isLoading, refetch };
-};
-
-export const useProblem = (id?: string) => {
-  const { data, isLoading } = useQuery(async () => {
-    if (!id) return null;
-    const problems = await api.problems.list('');
-    const problem = problems.find(p => p.id === id);
-    if (!problem) return null;
-    const signals = await api.signals.list('');
-    const problemSignals = signals.filter(s => s.product_area === problem.product_area);
-    const accounts = await api.accounts.list('');
-    const problemAccounts = accounts.filter(a => problemSignals.some(s => s.account_id === a.id));
-    return { problem, signals: problemSignals, accounts: problemAccounts };
-  }, [id]);
-  return { data, isLoading };
-};
-
-export const useOpportunities = (wsId?: string) => {
-  const { data, isLoading, refetch } = useQuery(async () => {
-    if (!wsId) return [];
-    return api.opportunities.list(wsId);
-  }, [wsId]);
-  return { data: data || [], isLoading, refetch };
-};
-
-export const useOpportunity = (id?: string) => {
-  const { data, isLoading } = useQuery(async () => {
-    if (!id) return null;
-    const opps = await api.opportunities.list('');
-    return opps.find(o => o.id === id) || null;
-  }, [id]);
-  return { data, isLoading };
-};
-
-export const useDecisions = (wsId?: string) => {
-  const { data, isLoading } = useQuery(async () => {
-    if (!wsId) return [];
-    return api.decisions.list(wsId);
-  }, [wsId]);
-  return { data: data || [], isLoading };
-};
-
-export const useDecision = (id?: string) => {
-  const { data, isLoading } = useQuery(async () => {
-    if (!id) return null;
-    const decisions = await api.decisions.list('');
-    return decisions.find(d => d.id === id) || null;
-  }, [id]);
-  return { data, isLoading };
-};
-
-export const useArtifacts = (wsId?: string) => {
-  const { data, isLoading, refetch } = useQuery(async () => {
-    if (!wsId) return [];
-    return api.artifacts.list(wsId);
-  }, [wsId]);
-  return { data: data || [], isLoading, refetch };
-};
-
-export const useArtifact = (id?: string) => {
-  const { data, isLoading } = useQuery(async () => {
-    if (!id) return null;
-    const artifacts = await api.artifacts.list('');
-    return artifacts.find(a => a.id === id) || null;
-  }, [id]);
-  return { data, isLoading };
-};
-
-export const useLaunches = (wsId?: string) => {
-  const { data, isLoading } = useQuery(async () => {
-    if (!wsId) return [];
-    return api.launches.list(wsId);
-  }, [wsId]);
-  return { data: data || [], isLoading };
 };
