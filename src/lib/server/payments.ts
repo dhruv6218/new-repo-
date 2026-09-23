@@ -93,3 +93,53 @@ export function providerConfig(provider: PaymentProvider) {
     webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET,
   };
 }
+
+/**
+ * Resolves gateway credentials for a given workspace.
+ * First checks if the workspace user connected their own key via Gateways UI (AES-256-GCM decrypted).
+ * If no user key is connected, falls back to platform environment variables.
+ */
+export async function resolveGatewayCredentials(
+  workspaceId: string,
+  provider: 'stripe' | 'razorpay',
+): Promise<{ secretKey?: string; keyId?: string; keySecret?: string }> {
+  const admin = createAdminClient();
+  const { data: conn } = await admin
+    .from('gateway_connections')
+    .select('encrypted_secret_ref')
+    .eq('workspace_id', workspaceId)
+    .eq('provider', provider)
+    .eq('is_active', true)
+    .maybeSingle();
+
+  const ref = typeof conn?.encrypted_secret_ref === 'string' ? conn.encrypted_secret_ref : null;
+  if (ref && ref.startsWith('aes256gcm:')) {
+    const encryptionKey = process.env.GATEWAY_ENCRYPTION_KEY;
+    if (encryptionKey && encryptionKey.length >= 32) {
+      try {
+        const parts = ref.split(':');
+        const iv = Buffer.from(parts[1], 'hex');
+        const tag = Buffer.from(parts[2], 'hex');
+        const encryptedText = Buffer.from(parts[3], 'hex');
+        const decipher = crypto.createDecipheriv('aes-256-gcm', Buffer.from(encryptionKey.slice(0, 32)), iv);
+        decipher.setAuthTag(tag);
+        const decrypted = Buffer.concat([decipher.update(encryptedText), decipher.final()]).toString('utf8');
+        const parsed = JSON.parse(decrypted) as { api_key?: string; api_secret?: string };
+        if (provider === 'stripe' && parsed.api_key) {
+          return { secretKey: parsed.api_key };
+        }
+        if (provider === 'razorpay' && parsed.api_key) {
+          return { keyId: parsed.api_key, keySecret: parsed.api_secret ?? '' };
+        }
+      } catch {
+        // Fallback to platform env
+      }
+    }
+  }
+
+  // Fallback to platform environment variables
+  if (provider === 'stripe') {
+    return { secretKey: process.env.STRIPE_SECRET_KEY };
+  }
+  return { keyId: process.env.RAZORPAY_KEY_ID, keySecret: process.env.RAZORPAY_KEY_SECRET };
+}

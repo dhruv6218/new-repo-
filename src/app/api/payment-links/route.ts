@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { providerConfig, savePaymentLink } from '../../../lib/server/payments';
+import { resolveGatewayCredentials, savePaymentLink } from '../../../lib/server/payments';
 import { createSupabaseServerClient } from '../../../lib/supabase/server';
 import { rateLimit } from '../../../lib/server/rate-limit';
 
@@ -50,8 +50,8 @@ export async function POST(request: Request) {
   const currency = invoice.currency;
 
   if (input.provider === 'stripe') {
-    const config = providerConfig('stripe');
-    if (!config.secretKey) return NextResponse.json({ error: 'Stripe is not configured' }, { status: 503 });
+    const creds = await resolveGatewayCredentials(invoice.workspace_id, 'stripe');
+    if (!creds.secretKey) return NextResponse.json({ error: 'Stripe is not configured. Please add your Stripe API key in Gateways settings.' }, { status: 503 });
     const params = new URLSearchParams({
       'line_items[0][price_data][currency]': currency.toLowerCase(),
       'line_items[0][price_data][unit_amount]': String(Math.round(amount * 100)),
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     });
     const response = await fetch('https://api.stripe.com/v1/payment_links', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${config.secretKey}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: { Authorization: `Bearer ${creds.secretKey}`, 'Content-Type': 'application/x-www-form-urlencoded' },
       body: params,
     });
     if (!response.ok) return NextResponse.json({ error: 'Stripe payment link creation failed' }, { status: 502 });
@@ -72,12 +72,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ url: link.url });
   }
 
-  const config = providerConfig('razorpay');
-  if (!config.keyId || !config.keySecret) return NextResponse.json({ error: 'Razorpay is not configured' }, { status: 503 });
+  const creds = await resolveGatewayCredentials(invoice.workspace_id, 'razorpay');
+  if (!creds.keyId || !creds.keySecret) return NextResponse.json({ error: 'Razorpay is not configured. Please add your Razorpay credentials in Gateways settings.' }, { status: 503 });
   const response = await fetch('https://api.razorpay.com/v1/payment_links', {
     method: 'POST',
     headers: {
-      Authorization: `Basic ${Buffer.from(`${config.keyId}:${config.keySecret}`).toString('base64')}`,
+      Authorization: `Basic ${Buffer.from(`${creds.keyId}:${creds.keySecret}`).toString('base64')}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
