@@ -1,11 +1,31 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Providers } from '../components/Providers';
+import { Analytics } from '../components/Analytics';
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://astrix.ai'),
   title: 'Astrix AI — Autonomous B2B Revenue Recovery',
   description: 'Get your late B2B invoices paid automatically without the awkward follow-ups. AI-powered recovery for freelancers and agencies.',
-  keywords: 'invoice recovery, B2B payments, AI invoicing, automated follow-up, Astrix AI',
+  keywords: ['invoice recovery', 'B2B payments', 'AI invoicing', 'automated follow-up', 'Astrix AI'],
+  applicationName: 'Astrix AI',
+  generator: 'Next.js',
+  alternates: { canonical: '/' },
+  openGraph: {
+    type: 'website',
+    siteName: 'Astrix AI',
+    title: 'Astrix AI — Autonomous B2B Revenue Recovery',
+    description: 'Get your late B2B invoices paid automatically without the awkward follow-ups.',
+    url: '/',
+    images: [{ url: '/og-image.svg', width: 1200, height: 630, alt: 'Astrix AI revenue recovery' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Astrix AI — Autonomous B2B Revenue Recovery',
+    description: 'Get your late B2B invoices paid automatically without the awkward follow-ups.',
+    images: ['/og-image.svg'],
+  },
+  icons: { icon: '/icon.svg', apple: '/icon.svg' },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -19,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body suppressHydrationWarning>
         <Providers>
           {children}
+          <Analytics />
         </Providers>
       </body>
     </html>

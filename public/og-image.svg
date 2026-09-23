@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#fff"/>
+  <circle cx="1010" cy="100" r="300" fill="#1A56FF" opacity=".08"/>
+  <text x="90" y="250" fill="#111827" font-family="Arial, sans-serif" font-size="78" font-weight="700">ASTRIX AI</text>
+  <text x="90" y="340" fill="#1A56FF" font-family="Arial, sans-serif" font-size="48" font-weight="700">Autonomous B2B</text>
+  <text x="90" y="400" fill="#1A56FF" font-family="Arial, sans-serif" font-size="48" font-weight="700">revenue recovery</text>
+</svg>

@@ -9,10 +9,12 @@ export const Contact = () => {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setError(null);
     
     const form = e.currentTarget;
     const formData = new FormData(form);
@@ -31,11 +33,11 @@ export const Contact = () => {
         form.reset(); // Clear the form fields
         setTimeout(() => setIsSuccess(false), 5000);
       } else {
-        alert("Oops! There was a problem submitting your form.");
+        setError("We couldn't send your message. Please try again.");
       }
-    } catch (error) {
-      console.error("Error submitting form", error);
-      alert("Oops! There was a problem submitting your form.");
+    } catch (submitError) {
+      console.error("Error submitting form", submitError);
+      setError("We couldn't send your message. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -51,7 +53,7 @@ export const Contact = () => {
             <MessageCircle className="w-4 h-4" /> Get in touch
           </div>
           <h1 className={`font-heading text-fluid-2 leading-[0.9] tracking-tighter text-gray-900 mb-6 transition-all duration-700 delay-100 ${headerVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-            We're here to <br/>
+            We&apos;re here to <br/>
             <span className="text-brand-blue">help you build.</span>
           </h1>
           <p className={`text-lg md:text-xl text-gray-600 font-medium max-w-2xl mx-auto mb-12 transition-all duration-700 delay-200 ${headerVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
@@ -97,7 +99,7 @@ export const Contact = () => {
               <div className="absolute top-0 right-0 w-64 h-64 bg-brand-blue/5 rounded-full blur-[80px] pointer-events-none"></div>
               
               <h3 className="font-heading text-2xl font-bold text-gray-900 mb-2 relative z-10">Send a Message</h3>
-              <p className="text-gray-500 font-medium mb-8 relative z-10">Fill out the form below and we'll get back to you shortly.</p>
+              <p className="text-gray-500 font-medium mb-8 relative z-10">Fill out the form below and we&apos;ll get back to you shortly.</p>
 
               {isSuccess ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center animate-[fadeIn_0.5s_ease-out]">
@@ -109,6 +111,7 @@ export const Contact = () => {
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
+                  {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">{error}</p>}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-bold text-gray-900 mb-2" htmlFor="firstName">First Name</label>
@@ -117,6 +120,8 @@ export const Contact = () => {
                         id="firstName"
                         name="firstName"
                         required
+                        minLength={2}
+                        autoComplete="given-name"
                         className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:bg-white focus:ring-4 focus:ring-brand-blue/20 focus:border-brand-blue block p-4 transition-all duration-300 outline-none placeholder-gray-400" 
                         placeholder="Jane" 
                       />
@@ -128,6 +133,8 @@ export const Contact = () => {
                         id="lastName"
                         name="lastName"
                         required
+                        minLength={2}
+                        autoComplete="family-name"
                         className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:bg-white focus:ring-4 focus:ring-brand-blue/20 focus:border-brand-blue block p-4 transition-all duration-300 outline-none placeholder-gray-400" 
                         placeholder="Doe" 
                       />
@@ -141,6 +148,7 @@ export const Contact = () => {
                       id="email"
                       name="email"
                       required
+                      autoComplete="email"
                       className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:bg-white focus:ring-4 focus:ring-brand-blue/20 focus:border-brand-blue block p-4 transition-all duration-300 outline-none placeholder-gray-400" 
                       placeholder="jane@company.com" 
                     />
@@ -168,6 +176,7 @@ export const Contact = () => {
                       id="message"
                       name="message"
                       required
+                      minLength={10}
                       rows={4}
                       className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:bg-white focus:ring-4 focus:ring-brand-blue/20 focus:border-brand-blue block p-4 transition-all duration-300 outline-none placeholder-gray-400 resize-none" 
                       placeholder="How can we help you?" 

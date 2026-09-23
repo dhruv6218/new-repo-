@@ -1,29 +1,23 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { AuthLayout } from '../layouts/AuthLayout';
 import { Eye, EyeOff, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 
 export const ResetPassword = () => {
-  const router = useRouter();
   const { updatePassword } = useAuth();
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [strength, setStrength] = useState(0);
   const [isSuccess, setIsSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let score = 0;
-    if (password.length > 7) score += 1;
-    if (/[A-Z]/.test(password) && /[0-9]/.test(password)) score += 1;
-    if (/[^A-Za-z0-9]/.test(password)) score += 1;
-    setStrength(score);
-  }, [password]);
+  const strength = Number(password.length > 7)
+    + Number(/[A-Z]/.test(password) && /[0-9]/.test(password))
+    + Number(/[^A-Za-z0-9]/.test(password));
 
   const getStrengthColor = () => {
     if (strength === 0) return 'bg-gray-200';
@@ -34,6 +28,10 @@ export const ResetPassword = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
     setIsLoading(true);
     setError(null);
 
@@ -79,7 +77,10 @@ export const ResetPassword = () => {
                     type={showPassword ? "text" : "password"} 
                     id="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setError(null);
+                    }}
                     className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:bg-white focus:ring-4 focus:ring-brand-blue/20 focus:border-brand-blue block p-3.5 pr-10 transition-all duration-300 outline-none placeholder-gray-400" 
                     placeholder="••••••••" 
                     required 
@@ -107,6 +108,11 @@ export const ResetPassword = () => {
                 <input 
                   type="password" 
                   id="confirm"
+                  value={confirmPassword}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    setError(null);
+                  }}
                   className="w-full bg-gray-50/50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:bg-white focus:ring-4 focus:ring-brand-blue/20 focus:border-brand-blue block p-3.5 transition-all duration-300 outline-none placeholder-gray-400" 
                   placeholder="••••••••" 
                   required 
@@ -115,7 +121,7 @@ export const ResetPassword = () => {
               
               <button 
                 type="submit" 
-                disabled={strength < 2 || isLoading || !!error}
+                disabled={strength < 2 || password !== confirmPassword || isLoading || !!error}
                 className="w-full flex items-center justify-center text-white bg-brand-blue hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed focus-visible:ring-4 focus-visible:ring-brand-blue focus-visible:ring-offset-2 font-bold rounded-xl text-sm px-5 py-4 transition-all shadow-glow-blue btn-shine outline-none mt-2 h-[52px]"
               >
                 {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Update Password'}
