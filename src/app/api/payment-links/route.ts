@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { providerConfig, savePaymentLink } from '../../../lib/server/payments';
+import { createSupabaseServerClient } from '../../../lib/supabase/server';
 
 type LinkRequest = {
   provider?: 'stripe' | 'razorpay';
@@ -11,16 +12,36 @@ type LinkRequest = {
 
 export async function POST(request: Request) {
   const input = await request.json() as LinkRequest;
-  const amount = input.amount;
-  if (!input.provider || !input.invoice_id || typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0 || !input.currency) {
-    return NextResponse.json({ error: 'provider, invoice_id, amount, and currency are required' }, { status: 400 });
+  if (!input.provider || !input.invoice_id) {
+    return NextResponse.json({ error: 'provider and invoice_id are required' }, { status: 400 });
   }
+  if (!/^[0-9a-f-]{36}$/i.test(input.invoice_id)) return NextResponse.json({ error: 'Invalid invoice id' }, { status: 400 });
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  const { data: invoice, error: invoiceError } = await supabase
+    .from('invoices')
+    .select('id,workspace_id,client_name,total_minor,currency,status')
+    .eq('id', input.invoice_id)
+    .maybeSingle();
+  if (invoiceError) return NextResponse.json({ error: invoiceError.message }, { status: 500 });
+  if (!invoice || invoice.status === 'paid') return NextResponse.json({ error: 'Invoice is unavailable for payment' }, { status: 404 });
+  const { data: membership, error: membershipError } = await supabase
+    .from('workspace_members')
+    .select('workspace_id')
+    .eq('workspace_id', invoice.workspace_id)
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (membershipError) return NextResponse.json({ error: membershipError.message }, { status: 500 });
+  if (!membership) return NextResponse.json({ error: 'You do not have access to this invoice' }, { status: 403 });
+  const amount = Number(invoice.total_minor) / 100;
+  const currency = invoice.currency;
 
   if (input.provider === 'stripe') {
     const config = providerConfig('stripe');
     if (!config.secretKey) return NextResponse.json({ error: 'Stripe is not configured' }, { status: 503 });
     const params = new URLSearchParams({
-      'line_items[0][price_data][currency]': input.currency.toLowerCase(),
+      'line_items[0][price_data][currency]': currency.toLowerCase(),
       'line_items[0][price_data][unit_amount]': String(Math.round(amount * 100)),
       'line_items[0][price_data][product_data][name]': input.description ?? `Invoice ${input.invoice_id}`,
       'line_items[0][quantity]': '1',
@@ -35,7 +56,7 @@ export async function POST(request: Request) {
     if (!response.ok) return NextResponse.json({ error: 'Stripe payment link creation failed' }, { status: 502 });
     const link = await response.json() as { id?: string; url?: string };
     if (!link.id || !link.url) return NextResponse.json({ error: 'Stripe returned an incomplete payment link' }, { status: 502 });
-    await savePaymentLink({ invoiceId: input.invoice_id, provider: 'stripe', externalId: link.id, url: link.url, amount, currency: input.currency });
+    await savePaymentLink({ invoiceId: input.invoice_id, provider: 'stripe', externalId: link.id, url: link.url, amount, currency });
     return NextResponse.json({ url: link.url });
   }
 
@@ -49,7 +70,7 @@ export async function POST(request: Request) {
     },
     body: JSON.stringify({
       amount: Math.round(amount * 100),
-      currency: input.currency.toUpperCase(),
+      currency: currency.toUpperCase(),
       description: input.description ?? `Invoice ${input.invoice_id}`,
       reference_id: input.invoice_id,
       notes: { invoice_id: input.invoice_id },
@@ -58,6 +79,6 @@ export async function POST(request: Request) {
   if (!response.ok) return NextResponse.json({ error: 'Razorpay payment link creation failed' }, { status: 502 });
   const link = await response.json() as { id?: string; short_url?: string };
   if (!link.id || !link.short_url) return NextResponse.json({ error: 'Razorpay returned an incomplete payment link' }, { status: 502 });
-  await savePaymentLink({ invoiceId: input.invoice_id, provider: 'razorpay', externalId: link.id, url: link.short_url, amount, currency: input.currency });
+  await savePaymentLink({ invoiceId: input.invoice_id, provider: 'razorpay', externalId: link.id, url: link.short_url, amount, currency });
   return NextResponse.json({ url: link.short_url });
 }

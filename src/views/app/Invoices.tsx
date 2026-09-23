@@ -87,6 +87,15 @@ export const Invoices = () => {
     }).catch(error => addToast(error instanceof Error ? error.message : 'Could not resume invoice.', 'error'));
   };
 
+  const handleMarkPaid = (invoice: Invoice) => {
+    if (!window.confirm(`Mark ${invoice.client_name}'s invoice as paid manually? Only do this after verifying payment.`)) return;
+    api.invoices.update(invoice.id, { status: 'paid' }).then(() => {
+      setInvoices(prev => prev.map(item => item.id === invoice.id ? { ...item, status: 'paid' as const, ai_status: 'paid' as const } : item));
+      addToast('Invoice marked paid. Future reminders are stopped.', 'success');
+      triggerUpdate();
+    }).catch(error => addToast(error instanceof Error ? error.message : 'Could not mark invoice paid.', 'error'));
+  };
+
   const exportCsv = () => {
     const headers = ['Client', 'Email', 'Amount', 'Currency', 'Due Date', 'Status', 'Days Overdue', 'Reminders'];
     const rows = filteredInvoices.map(invoice => [
@@ -232,6 +241,15 @@ export const Invoices = () => {
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-bold hover:bg-gray-200 transition-colors shadow-sm"
                           >
                             <Pause className="w-3 h-3" /> Pause AI
+                          </button>
+                        )}
+                        {invoice.status !== 'paid' && (
+                          <button
+                            onClick={() => handleMarkPaid(invoice)}
+                            aria-label={`Mark ${invoice.client_name} as paid manually`}
+                            className="px-3 py-1.5 bg-green-50 text-green-700 border border-green-200 rounded-lg text-xs font-bold hover:bg-green-100 transition-colors"
+                          >
+                            Mark paid
                           </button>
                         )}
                         <button
