@@ -58,6 +58,26 @@ export async function POST(request: Request) {
       } else console.error('Gemini tone preview failed:', response.status);
     }
 
+    const groqKey = process.env.GROQ_API_KEY;
+    if (groqKey) {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: process.env.GROQ_MODEL || 'openai/gpt-oss-20b',
+          temperature: 0.7,
+          max_tokens: 500,
+          messages: [{ role: 'system', content: `You write overdue-invoice reminder emails. Match the sender's writing style from the examples, while using a ${toneLabels[toneLevel]} tone. Return only the email body.` }, { role: 'user', content: prompt }],
+        }),
+        signal: controller.signal,
+      });
+      if (response.ok) {
+        const result = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+        const preview = result.choices?.[0]?.message?.content?.trim();
+        if (preview) return NextResponse.json({ preview, provider: 'groq' });
+      } else console.error('Groq tone preview failed:', response.status);
+    }
+
     const nvidiaKey = process.env.NVIDIA_API_KEY;
     if (nvidiaKey) {
       const response = await fetch(process.env.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1/chat/completions', {

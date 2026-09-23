@@ -75,6 +75,19 @@ async function generateBody(invoice: Invoice, tone: ToneSettings | null) {
       if (typeof content === "string" && content.trim()) return content.trim();
     } else console.error("Gemini request failed with", response.status);
   }
+  const groqKey = Deno.env.get("GROQ_API_KEY");
+  if (groqKey) {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { authorization: `Bearer ${groqKey}`, "content-type": "application/json" },
+      body: JSON.stringify({ model: Deno.env.get("GROQ_MODEL") ?? "openai/gpt-oss-20b", temperature: 0.2, max_tokens: 300, messages: [{ role: "user", content: prompt }] }),
+    });
+    if (response.ok) {
+      const data = await response.json();
+      const content = data?.choices?.[0]?.message?.content;
+      if (typeof content === "string" && content.trim()) return content.trim();
+    } else console.error("Groq request failed with", response.status);
+  }
   const nvidiaKey = Deno.env.get("NVIDIA_API_KEY");
   if (nvidiaKey) {
     const response = await fetch(Deno.env.get("NVIDIA_BASE_URL") ?? "https://integrate.api.nvidia.com/v1/chat/completions", {
