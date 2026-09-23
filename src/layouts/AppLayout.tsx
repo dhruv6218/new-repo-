@@ -30,15 +30,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, title, subtitle,
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const [globalAnnouncement, setGlobalAnnouncement] = useState('');
-  const [impersonationName, setImpersonationName] = useState('');
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
-      const savedAnnouncement = localStorage.getItem('global_announcement');
-      setGlobalAnnouncement(savedAnnouncement || '');
-
-      const impersonated = localStorage.getItem('impersonated_user_name');
-      setImpersonationName(impersonated || '');
+      setGlobalAnnouncement('');
     });
     return () => window.cancelAnimationFrame(frame);
   }, [pathname]);
@@ -51,14 +46,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, title, subtitle,
   const handleUpgradeClick = () => {
     addToast("Redirecting to upgrade options...", "success");
     router.push('/pricing');
-  };
-
-  const handleExitImpersonation = () => {
-    localStorage.removeItem('impersonated_user_id');
-    localStorage.removeItem('impersonated_user_name');
-    setImpersonationName('');
-    addToast('Exited Impersonation Mode', 'success');
-    router.push('/godview');
   };
 
   const navSections = [
@@ -205,20 +192,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, title, subtitle,
       <main className="flex-1 flex flex-col min-h-screen w-full md:ml-64 transition-all duration-300">
         
         {/* Banners */}
-        {impersonationName && (
-          <div className="bg-red-600 text-white px-4 py-2 flex items-center justify-between z-40 relative shadow-md">
-            <div className="flex items-center gap-2">
-              <LogOut className="w-4 h-4 shrink-0" />
-              <span className="text-sm font-bold">Impersonating User: <span className="font-black">{impersonationName}</span></span>
-            </div>
-            <button 
-              onClick={handleExitImpersonation}
-              className="bg-white/20 hover:bg-white/30 px-3 py-1 rounded text-xs font-bold transition-colors"
-            >
-              Exit & Return to Admin
-            </button>
-          </div>
-        )}
 
         {globalAnnouncement && (
           <div className="bg-brand-blue text-white px-4 py-2.5 flex items-center justify-between z-40 relative shadow-sm">

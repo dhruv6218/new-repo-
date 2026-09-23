@@ -21,6 +21,12 @@ type WorkspaceMember = {
   Update: Partial<{ role: 'owner' | 'admin' | 'member' | 'viewer' }>;
   Relationships: [];
 };
+type AdminMember = {
+  Row: { user_id: string; role: 'admin' | 'super_admin'; created_at: string };
+  Insert: { user_id: string; role?: 'admin' | 'super_admin' };
+  Update: Partial<{ role: 'admin' | 'super_admin' }>;
+  Relationships: [];
+};
 type Invoice = {
   Row: {
     id: string; workspace_id: string; subscription_id: string | null; invoice_number: string;
@@ -47,6 +53,7 @@ export interface Database {
       profiles: Profile;
       workspaces: Workspace;
       workspace_members: WorkspaceMember;
+      admin_members: AdminMember;
       plans: Tables;
       subscriptions: Tables;
       usage_counters: Tables;

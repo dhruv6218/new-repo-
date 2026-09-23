@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Users, Shield, Activity, AlertTriangle, CheckCircle2,
-  Ban, Coins, LogIn, LogOut, BarChart3, Mail, Zap,
+  Ban, LogIn, LogOut, BarChart3, Mail, Zap,
   TrendingUp, RefreshCw, Loader2, Search, DollarSign,
   Megaphone, ExternalLink, Send
 } from 'lucide-react';
@@ -36,11 +36,6 @@ export const AdminDashboard: React.FC = () => {
   const [announcementMsg, setAnnouncementMsg] = useState('');
   const [currentAnnouncement, setCurrentAnnouncement] = useState('');
 
-  useEffect(() => {
-    const saved = localStorage.getItem('global_announcement');
-    if (saved) setCurrentAnnouncement(saved);
-  }, []);
-
   const handleSignOut = async () => { await signOut(); router.push('/godview'); };
 
   const handleBlock = async (u: AdminUser) => {
@@ -57,30 +52,14 @@ export const AdminDashboard: React.FC = () => {
     refetch(); setProcessingId(null);
   };
 
-  const handleAddCredits = async (u: AdminUser) => {
-    setProcessingId(u.id);
-    await api.admin.addCredits(u.id, 3);
-    addToast(`Added 3 free credits to ${u.full_name}`, 'success');
-    refetch(); setProcessingId(null);
-  };
-
-  const handleImpersonate = (u: AdminUser) => {
-    localStorage.setItem('impersonated_user_id', u.id);
-    localStorage.setItem('impersonated_user_name', u.full_name);
-    addToast(`Impersonating ${u.full_name}...`, 'success');
-    router.push('/app');
-  };
-
   const handleSendAnnouncement = () => {
     if (!announcementMsg.trim()) return;
-    localStorage.setItem('global_announcement', announcementMsg);
     setCurrentAnnouncement(announcementMsg);
     setAnnouncementMsg('');
     addToast('Global announcement sent!', 'success');
   };
 
   const handleClearAnnouncement = () => {
-    localStorage.removeItem('global_announcement');
     setCurrentAnnouncement('');
     addToast('Announcement cleared.', 'success');
   };
@@ -209,14 +188,6 @@ export const AdminDashboard: React.FC = () => {
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-2 flex-nowrap">
-                              <button onClick={() => handleImpersonate(u)} title="Login as User"
-                                className="px-2 py-1.5 flex items-center gap-1.5 bg-brand-blue/10 hover:bg-brand-blue/20 text-brand-blue rounded-lg border border-brand-blue/20 transition-colors text-xs font-bold" aria-label={`Login as ${u.full_name}`}>
-                                <LogIn className="w-3.5 h-3.5" /> Login
-                              </button>
-                              <button onClick={() => handleAddCredits(u)} disabled={processingId === u.id} title="Add 3 free credits"
-                                className="p-1.5 bg-gray-50 hover:bg-brand-yellow/20 text-gray-500 hover:text-yellow-700 rounded-lg border border-gray-200 transition-colors disabled:opacity-50" aria-label={`Add credits to ${u.full_name}`}>
-                                <Coins className="w-3.5 h-3.5" />
-                              </button>
                               <button onClick={() => handleSuspend(u)} disabled={processingId === u.id} title={u.status === 'suspended' ? 'Reactivate' : 'Suspend'}
                                 className="p-1.5 bg-gray-50 hover:bg-orange-100 text-gray-500 hover:text-orange-600 rounded-lg border border-gray-200 transition-colors disabled:opacity-50" aria-label={u.status === 'suspended' ? `Reactivate ${u.full_name}` : `Suspend ${u.full_name}`}>
                                 <AlertTriangle className="w-3.5 h-3.5" />

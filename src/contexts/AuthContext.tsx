@@ -23,7 +23,6 @@ const DEMO_USER: User = {
   created_at: '2024-01-01T00:00:00.000Z',
 };
 const DEMO_SESSION: Session = { access_token: 'demo-session', user: DEMO_USER };
-const ADMIN_STORAGE_KEY = 'astrix_admin_session';
 
 interface AuthContextType {
   session: Session | null;
@@ -82,7 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(() => demo ? DEMO_SESSION : null);
   const [user, setUser] = useState<User | null>(() => demo ? DEMO_USER : null);
   const [isInitializing, setIsInitializing] = useState(() => !demo && !!supabase);
-  const [isAdmin, setIsAdmin] = useState(() => typeof window !== 'undefined' && localStorage.getItem(ADMIN_STORAGE_KEY) === 'true');
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (demo) {
@@ -98,6 +97,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(mapSession(data.session));
         setUser(data.session ? mapUser(data.session.user) : null);
         setIsInitializing(false);
+        if (data.session) {
+          fetch('/api/admin/session').then(response => setIsAdmin(response.ok)).catch(() => setIsAdmin(false));
+        }
       }
     }).catch(() => active && setIsInitializing(false));
 
@@ -106,6 +108,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(mapSession(nextSession));
         setUser(nextSession ? mapUser(nextSession.user) : null);
         setIsInitializing(false);
+        if (nextSession) {
+          fetch('/api/admin/session').then(response => setIsAdmin(response.ok)).catch(() => setIsAdmin(false));
+        } else {
+          setIsAdmin(false);
+        }
       }
     });
     return () => {
@@ -171,13 +178,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSession(null);
     setUser(null);
     setIsAdmin(false);
-    localStorage.removeItem(ADMIN_STORAGE_KEY);
   };
 
   const signInAsAdmin = async (email: string, password: string) => {
     if (!email || !password) return { error: 'Please enter both admin email and password' };
+    if (!supabase) return { error: 'Authentication is not configured. Please set the Supabase environment variables.' };
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { error: errorMessage(error) };
+    const response = await fetch('/api/admin/session');
+    if (!response.ok) {
+      await supabase.auth.signOut();
+      return { error: 'This account is not authorized for admin access.' };
+    }
     setIsAdmin(true);
-    localStorage.setItem(ADMIN_STORAGE_KEY, 'true');
     return { error: null };
   };
 

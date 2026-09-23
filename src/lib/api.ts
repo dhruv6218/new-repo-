@@ -442,25 +442,17 @@ export const api = {
 
   admin: {
     listUsers: async (): Promise<AdminUser[]> => {
-      return getStorage<AdminUser[]>(KEYS.ADMIN_USERS, []);
+      const response = await fetch('/api/admin/users');
+      const body = await response.json() as { users?: AdminUser[]; error?: string };
+      if (!response.ok) throw new Error(body.error || 'Could not load admin users');
+      return body.users || [];
     },
     updateUser: async (id: string, data: Partial<AdminUser>): Promise<void> => {
-      const users = getStorage<AdminUser[]>(KEYS.ADMIN_USERS, []);
-      const idx = users.findIndex(u => u.id === id);
-      if (idx !== -1) {
-        users[idx] = { ...users[idx], ...data };
-        setStorage(KEYS.ADMIN_USERS, users);
-        triggerUpdate();
-      }
+      const response = await fetch('/api/admin/users', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status: data.status }) });
+      if (!response.ok) throw new Error((await response.json() as { error?: string }).error || 'Could not update user');
     },
     addCredits: async (id: string, credits: number): Promise<void> => {
-      const users = getStorage<AdminUser[]>(KEYS.ADMIN_USERS, []);
-      const idx = users.findIndex(u => u.id === id);
-      if (idx !== -1) {
-        users[idx].credits_used = Math.max(0, users[idx].credits_used - credits);
-        setStorage(KEYS.ADMIN_USERS, users);
-        triggerUpdate();
-      }
+      throw new Error(`Credits are not available in the production admin API (${id}, ${credits})`);
     },
   },
 
