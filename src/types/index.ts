@@ -39,6 +39,26 @@ export interface GatewaySettings {
   created_at: string;
 }
 
+export interface InvoicePaymentLink {
+  id: string;
+  invoice_id: string;
+  provider: Extract<GatewayType, 'stripe' | 'razorpay'>;
+  external_id: string;
+  url: string;
+  amount: number;
+  currency: string;
+  status: 'active' | 'paid' | 'expired';
+  created_at: string;
+}
+
+export interface GatewayWebhookEvent {
+  id: string;
+  provider: Extract<GatewayType, 'stripe' | 'razorpay'>;
+  event_id: string;
+  payload: Record<string, unknown>;
+  received_at: string;
+}
+
 export interface ToneSettings {
   workspace_id: string;
   sample_emails: string;
