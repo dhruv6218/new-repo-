@@ -44,29 +44,47 @@ export const Analytics = () => {
 
   useEffect(() => {
     if (isWorkspaceInitializing || !activeWorkspace) return;
-    if (activeWorkspace.id === 'ws-demo-astrix') {
-      // Demo data
-      setSummary({ totalInvoiced: 24800, totalRecovered: 18600, recoveryRate: 75, pendingCount: 3, paidCount: 12, overdueCount: 2, avgDaysToPay: 8, remindersLast30Days: 27 });
-      setTrend([
-        { month: 'Apr\'25', invoiced: 3200, recovered: 2100, reminders: 12 },
-        { month: 'May\'25', invoiced: 4800, recovered: 3600, reminders: 18 },
-        { month: 'Jun\'25', invoiced: 3900, recovered: 2900, reminders: 14 },
-        { month: 'Jul\'25', invoiced: 5100, recovered: 4000, reminders: 22 },
-        { month: 'Aug\'25', invoiced: 4200, recovered: 3200, reminders: 19 },
-        { month: 'Sep\'25', invoiced: 3600, recovered: 2800, reminders: 15 },
-      ]);
-      setIsLoading(false);
-      return;
-    }
-    setIsLoading(true);
-    fetch(`/api/analytics?workspace_id=${activeWorkspace.id}`)
-      .then(async res => {
+    let isCancelled = false;
+
+    const loadData = async () => {
+      if (activeWorkspace.id === 'ws-demo-astrix') {
+        if (!isCancelled) {
+          setSummary({ totalInvoiced: 24800, totalRecovered: 18600, recoveryRate: 75, pendingCount: 3, paidCount: 12, overdueCount: 2, avgDaysToPay: 8, remindersLast30Days: 27 });
+          setTrend([
+            { month: 'Apr\'25', invoiced: 3200, recovered: 2100, reminders: 12 },
+            { month: 'May\'25', invoiced: 4800, recovered: 3600, reminders: 18 },
+            { month: 'Jun\'25', invoiced: 3900, recovered: 2900, reminders: 14 },
+            { month: 'Jul\'25', invoiced: 5100, recovered: 4000, reminders: 22 },
+            { month: 'Aug\'25', invoiced: 4200, recovered: 3200, reminders: 19 },
+            { month: 'Sep\'25', invoiced: 3600, recovered: 2800, reminders: 15 },
+          ]);
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const res = await fetch(`/api/analytics?workspace_id=${activeWorkspace.id}`);
         if (!res.ok) throw new Error('Could not load analytics');
-        return res.json() as Promise<{ summary: AnalyticsSummary; monthlyTrend: MonthPoint[] }>;
-      })
-      .then(data => { setSummary(data.summary); setTrend(data.monthlyTrend); })
-      .catch(error => addToast(error instanceof Error ? error.message : 'Could not load analytics', 'error'))
-      .finally(() => setIsLoading(false));
+        const data = await res.json() as { summary: AnalyticsSummary; monthlyTrend: MonthPoint[] };
+        if (!isCancelled) {
+          setSummary(data.summary);
+          setTrend(data.monthlyTrend);
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          addToast(error instanceof Error ? error.message : 'Could not load analytics', 'error');
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadData();
+    return () => { isCancelled = true; };
   }, [activeWorkspace, isWorkspaceInitializing, addToast]);
 
   const maxInvoiced = Math.max(...trend.map(t => t.invoiced), 1);

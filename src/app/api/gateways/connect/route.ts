@@ -39,14 +39,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid key length' }, { status: 400 });
   }
 
-  // Verify membership in this workspace
+  // Verify user is an owner or admin in this workspace
   const { data: membership } = await supabase
     .from('workspace_members')
-    .select('workspace_id')
+    .select('role')
     .eq('workspace_id', workspace_id)
     .eq('user_id', user.id)
     .maybeSingle();
-  if (!membership) return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+  if (!membership || !['owner', 'admin'].includes(membership.role)) {
+    return NextResponse.json({ error: 'Owner or Admin permission required to modify gateway settings' }, { status: 403 });
+  }
 
   // Encrypt keys using AES-256-GCM with the GATEWAY_ENCRYPTION_KEY env var
   // If no encryption key is set, store a hashed reference only (less secure, but functional)

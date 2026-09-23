@@ -1,5 +1,4 @@
 import crypto from 'node:crypto';
-import { createAdminClient } from './admin';
 
 export type PaymentProvider = 'stripe' | 'razorpay' | 'dodo';
 
@@ -35,6 +34,7 @@ export async function claimWebhookEvent(
   payload: unknown,
   signatureValid = true,
 ): Promise<boolean> {
+  const { createAdminClient } = await import('./admin.ts');
   const admin = createAdminClient();
   const { data, error } = await admin
     .from('gateway_webhook_events')
@@ -49,6 +49,7 @@ export async function claimWebhookEvent(
 }
 
 export async function markInvoicePaid(invoiceId: string, _provider: PaymentProvider, _externalId: string): Promise<void> {
+  const { createAdminClient } = await import('./admin.ts');
   const admin = createAdminClient();
   const { error } = await admin
     .from('invoices')
@@ -66,6 +67,7 @@ export async function savePaymentLink(input: {
   amount: number;
   currency: string;
 }): Promise<void> {
+  const { createAdminClient } = await import('./admin.ts');
   const admin = createAdminClient();
   // Get workspace_id from invoice for RLS-safe insert
   const { data: invoice } = await admin.from('invoices').select('workspace_id').eq('id', input.invoiceId).single();
@@ -103,6 +105,7 @@ export async function resolveGatewayCredentials(
   workspaceId: string,
   provider: 'stripe' | 'razorpay',
 ): Promise<{ secretKey?: string; keyId?: string; keySecret?: string }> {
+  const { createAdminClient } = await import('./admin.ts');
   const admin = createAdminClient();
   const { data: conn } = await admin
     .from('gateway_connections')

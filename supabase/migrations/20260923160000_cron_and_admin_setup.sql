@@ -1,21 +1,29 @@
 -- Migration: 20260923160000_cron_and_admin_setup.sql
--- Automatically seeds the super admin user and configures pg_cron daily chase job.
+-- Safe helper procedures for operator-managed admin bootstrapping and cron scheduling.
+-- Does NOT contain source-controlled plain passwords or hardcoded secret tokens.
 
 create extension if not exists pgcrypto with schema extensions;
 
--- 1. Create and seed super admin user in auth.users and admin_members
-do $$
+-- Function: Public admin bootstrap procedure (parameterized, security definer)
+create or replace function public.bootstrap_admin(admin_email text, admin_password text)
+returns text
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
 declare
   target_user_id uuid;
-  target_email text := 'help.astrix@gmail.com';
-  target_password text := 'baadshah6218@';
   hashed_password text;
 begin
-  select id into target_user_id from auth.users where email = target_email;
+  if admin_email is null or admin_password is null or length(admin_password) < 8 then
+    raise exception 'Invalid input: Email and password (min 8 chars) are required.';
+  end if;
+
+  select id into target_user_id from auth.users where email = admin_email;
   
   if target_user_id is null then
     target_user_id := gen_random_uuid();
-    hashed_password := extensions.crypt(target_password, extensions.gen_salt('bf'));
+    hashed_password := extensions.crypt(admin_password, extensions.gen_salt('bf'));
     
     insert into auth.users (
       instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -26,7 +34,7 @@ begin
       target_user_id,
       'authenticated',
       'authenticated',
-      target_email,
+      admin_email,
       hashed_password,
       now(),
       '{"provider":"email","providers":["email"]}'::jsonb,
@@ -41,7 +49,7 @@ begin
     ) values (
       gen_random_uuid(),
       target_user_id,
-      format('{"sub":"%s","email":"%s"}', target_user_id, target_email)::jsonb,
+      format('{"sub":"%s","email":"%s"}', target_user_id, admin_email)::jsonb,
       'email',
       target_user_id::text,
       now(),
@@ -50,22 +58,35 @@ begin
     );
   end if;
 
-  -- Ensure user has profile
   insert into public.profiles (id, display_name, timezone)
   values (target_user_id, 'Astrix Admin', 'UTC')
   on conflict (id) do nothing;
 
-  -- Grant super_admin role in admin_members
   insert into public.admin_members (user_id, role)
   values (target_user_id, 'super_admin')
   on conflict (user_id) do update set role = 'super_admin';
 
+  return format('SUCCESS: Admin %s configured as super_admin', admin_email);
 end;
 $$;
 
--- 2. Setup pg_cron schedule for daily chase edge function
-do $$
+revoke all on function public.bootstrap_admin(text, text) from public;
+grant execute on function public.bootstrap_admin(text, text) to service_role;
+
+-- Function: Parameterized pg_cron scheduler procedure
+create or replace function public.schedule_daily_chase(cron_secret text)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  project_url text := 'https://yamqqvofbpesownknzni.supabase.co/functions/v1/daily-chase';
 begin
+  if cron_secret is null or length(cron_secret) < 16 then
+    raise exception 'Invalid cron_secret: Must be at least 16 characters.';
+  end if;
+
   if exists (select 1 from pg_extension where extname = 'pg_cron') then
     begin
       perform cron.unschedule('daily-chase-job');
@@ -75,9 +96,21 @@ begin
     perform cron.schedule(
       'daily-chase-job',
       '0 9 * * *',
-      'select net.http_post(url := ''https://yamqqvofbpesownknzni.supabase.co/functions/v1/daily-chase'', headers := ''{"Content-Type":"application/json","Authorization":"Bearer astrix_cron_secret_998822114455"}''::jsonb, body := ''{}''::jsonb);'
+      format(
+        'select net.http_post(url := %L, headers := %L::jsonb, body := %L::jsonb);',
+        project_url,
+        jsonb_build_object(
+          'Content-Type', 'application/json',
+          'Authorization', 'Bearer ' || cron_secret
+        )::text,
+        '{}'
+      )
     );
+    return 'SUCCESS: daily-chase-job scheduled at 0 9 * * *';
   end if;
-exception when others then null;
+  return 'SKIPPED: pg_cron extension not installed in this environment';
 end;
 $$;
+
+revoke all on function public.schedule_daily_chase(text) from public;
+grant execute on function public.schedule_daily_chase(text) to service_role;

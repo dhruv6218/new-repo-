@@ -193,8 +193,7 @@ Deno.serve(async (request: Request) => {
   try {
     if (request.method !== "POST") return json({ error: "POST required" }, 405);
 
-    const demo = Deno.env.get("DEMO_MODE") === "true" ||
-      request.headers.get("x-astrix-demo") === "true";
+    const demo = Deno.env.get("DEMO_MODE") === "true";
     const cronSecret = Deno.env.get("CRON_SECRET");
     if (!demo && (!cronSecret || request.headers.get("authorization") !== `Bearer ${cronSecret}`)) {
       return json({ error: "Unauthorized" }, 401);
