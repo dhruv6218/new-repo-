@@ -22,14 +22,6 @@ interface Invoice {
   reminder_count: number;
 }
 
-const MOCK_INVOICES: Invoice[] = [
-  { id: '1', client_name: 'Acme Corp', client_email: 'billing@acme.com', amount: 2400, currency: 'USD', due_date: '2025-01-01', status: 'pending', days_overdue: 14, ai_status: 'nudge_sent', last_chased_at: '2025-01-10', reminder_count: 2 },
-  { id: '2', client_name: 'TechStart GmbH', client_email: 'finance@techstart.de', amount: 1800, currency: 'EUR', due_date: '2024-12-28', status: 'pending', days_overdue: 18, ai_status: 'escalated', last_chased_at: '2025-01-08', reminder_count: 3 },
-  { id: '3', client_name: 'DataFlow Ltd', client_email: 'accounts@dataflow.co', amount: 890, currency: 'USD', due_date: '2025-01-05', status: 'pending', days_overdue: 10, ai_status: 'pending', last_chased_at: null, reminder_count: 0 },
-  { id: '4', client_name: 'InnovateLab', client_email: 'pay@innovatelab.com', amount: 1500, currency: 'USD', due_date: '2024-12-15', status: 'paid', days_overdue: 0, ai_status: 'paid', last_chased_at: '2024-12-20', reminder_count: 1 },
-  { id: '5', client_name: 'CloudScale Inc', client_email: 'ap@cloudscale.io', amount: 3200, currency: 'USD', due_date: '2024-12-20', status: 'paused', days_overdue: 25, ai_status: 'nudge_sent', last_chased_at: '2025-01-05', reminder_count: 2 },
-];
-
 export const Invoices = () => {
   const { addToast } = useToast();
   const { activeWorkspace, isWorkspaceInitializing } = useWorkspace();
@@ -53,7 +45,7 @@ export const Invoices = () => {
       if (!activeWorkspace) { setInvoices([]); setIsLoading(false); return; }
       setIsLoading(true);
       api.invoices.list(activeWorkspace.id).then(data => {
-        if (!cancelled) setInvoices(data.length || activeWorkspace.id !== 'ws-demo-astrix' ? data : MOCK_INVOICES);
+        if (!cancelled) setInvoices(data);
       }).catch(error => {
         if (!cancelled) {
           setInvoices([]);

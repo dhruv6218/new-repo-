@@ -4,9 +4,9 @@ type Row = Record<string, unknown>;
 type Tables = { Row: Row; Insert: Row; Update: Row; Relationships: [] };
 
 type Profile = {
-  Row: { id: string; display_name: string | null; avatar_url: string | null; timezone: string; created_at: string; updated_at: string };
-  Insert: { id: string; display_name?: string | null; avatar_url?: string | null; timezone?: string };
-  Update: Partial<{ display_name: string | null; avatar_url: string | null; timezone: string }>;
+  Row: { id: string; display_name: string | null; avatar_url: string | null; timezone: string; notification_preferences: Json; created_at: string; updated_at: string };
+  Insert: { id: string; display_name?: string | null; avatar_url?: string | null; timezone?: string; notification_preferences?: Json };
+  Update: Partial<{ display_name: string | null; avatar_url: string | null; timezone: string; notification_preferences: Json }>;
   Relationships: [];
 };
 type Workspace = {

@@ -8,61 +8,60 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
+import { useWorkspace } from '../../contexts/WorkspaceContext';
+import { useToast } from '../../contexts/ToastContext';
+import { api } from '../../lib/api';
+import type { ActivityItem, DashboardMetrics } from '../../types';
 import { Skeleton } from '../../components/ui/Skeleton';
-
-interface ActivityItem {
-  id: string;
-  type: 'reminder_sent' | 'payment_received' | 'invoice_created' | 'ai_action';
-  message: string;
-  timestamp: string;
-  amount?: number;
-}
-
-interface DashboardMetrics {
-  total_recovered: number;
-  currently_outstanding: number;
-  active_chases: number;
-  recovery_rate: number;
-  pending_invoices: number;
-  this_month_recovered: number;
-}
-
-const MOCK_ACTIVITIES: ActivityItem[] = [
-  { id: '1', type: 'reminder_sent', message: 'AI sent a friendly nudge to Acme Corp for Invoice #1042', timestamp: '2 hours ago', amount: 2400 },
-  { id: '2', type: 'payment_received', message: 'Payment received from InnovateLab � Invoice #1039 cleared', timestamp: '5 hours ago', amount: 1500 },
-  { id: '3', type: 'ai_action', message: 'AI escalated TechStart GmbH to Level 2 (Firm tone)', timestamp: '1 day ago' },
-  { id: '4', type: 'invoice_created', message: 'New invoice added for DataFlow Ltd', timestamp: '2 days ago', amount: 890 },
-  { id: '5', type: 'reminder_sent', message: 'AI sent 2nd reminder to CloudScale Inc', timestamp: '3 days ago', amount: 3200 },
-];
-
-const MOCK_METRICS: DashboardMetrics = {
-  total_recovered: 47200,
-  currently_outstanding: 8290,
-  active_chases: 3,
-  recovery_rate: 94,
-  pending_invoices: 4,
-  this_month_recovered: 12400
-};
 
 export const Dashboard = () => {
   const { user } = useAuth();
+  const { activeWorkspace, isWorkspaceInitializing } = useWorkspace();
+  const { addToast } = useToast();
   const router = useRouter();
   
   const [isLoading, setIsLoading] = useState(true);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const fullName = typeof user?.user_metadata?.full_name === 'string' ? user.user_metadata.full_name : '';
   const firstName = fullName.split(' ')[0] || 'there';
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setActivities(MOCK_ACTIVITIES);
-      setMetrics(MOCK_METRICS);
-      setIsLoading(false);
-    }, 700);
-    return () => clearTimeout(timer);
-  }, []);
+    if (isWorkspaceInitializing) return;
+    let cancelled = false;
+    if (!activeWorkspace) {
+      queueMicrotask(() => {
+        if (!cancelled) {
+          setMetrics(null);
+          setActivities([]);
+          setIsLoading(false);
+        }
+      });
+      return;
+    }
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setIsLoading(true);
+        setError(null);
+      }
+    });
+    api.dashboard.get(activeWorkspace.id).then(result => {
+      if (!cancelled) {
+        setMetrics(result.metrics);
+        setActivities(result.activities);
+      }
+    }).catch(reason => {
+      if (!cancelled) {
+        setMetrics(null);
+        setActivities([]);
+        setError(reason instanceof Error ? reason.message : 'Could not load dashboard data.');
+        addToast('Could not load dashboard data.', 'error');
+      }
+    }).finally(() => { if (!cancelled) setIsLoading(false); });
+    return () => { cancelled = true; };
+  }, [activeWorkspace, isWorkspaceInitializing, addToast]);
 
   const formatCurrency = (value: number, currency = 'USD') => {
     if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
@@ -89,8 +88,9 @@ export const Dashboard = () => {
   return (
     <AppLayout 
       title={`Welcome back, ${firstName}.`} 
-      subtitle="Here's your revenue recovery overview (demo data)."
+      subtitle={activeWorkspace?.id === 'ws-demo-astrix' ? "Here's your revenue recovery overview (demo mode)." : "Here's your revenue recovery overview."}
     >
+      {error && <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</div>}
       <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
         
         {/* Metrics Row */}

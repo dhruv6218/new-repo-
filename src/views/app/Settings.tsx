@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AppLayout } from '../../layouts/AppLayout';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -9,6 +9,8 @@ import {
   AlertTriangle, LogOut, Trash2
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useWorkspace } from '../../contexts/WorkspaceContext';
+import { api, NotificationPreferences } from '../../lib/api';
 
 type SettingsTab = 'profile' | 'billing' | 'notifications' | 'agency' | 'danger';
 
@@ -16,13 +18,68 @@ export const Settings = () => {
   const { user, signOut } = useAuth();
   const { addToast } = useToast();
   const router = useRouter();
+  const { activeWorkspace, updateWorkspaceName } = useWorkspace();
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [displayName, setDisplayName] = useState('');
+  const [businessName, setBusinessName] = useState('');
+  const [preferences, setPreferences] = useState<NotificationPreferences>({
+    payment_received: true, reminder_sent: true, invoice_dispute: true, weekly_summary: false,
+  });
 
   const fullName = typeof user?.user_metadata?.full_name === 'string' ? user.user_metadata.full_name : 'User';
   const email = user?.email || 'user@example.com';
   const initials = fullName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
+
+  useEffect(() => {
+    if (!user || !activeWorkspace) return;
+    if (activeWorkspace.id === 'ws-demo-astrix') {
+      queueMicrotask(() => {
+        setDisplayName(fullName);
+        setBusinessName(activeWorkspace.name);
+        setIsLoading(false);
+      });
+      return;
+    }
+    api.settings.get(user.id).then(settings => {
+      setDisplayName(settings.display_name || fullName);
+      setBusinessName(activeWorkspace.name);
+      setPreferences(settings.notification_preferences);
+    }).catch(error => addToast(error instanceof Error ? error.message : 'Could not load settings.', 'error'))
+      .finally(() => setIsLoading(false));
+  }, [user, activeWorkspace, fullName, addToast]);
+
+  const saveProfile = async () => {
+    if (!user || !activeWorkspace) return;
+    setIsSaving(true);
+    try {
+      if (activeWorkspace.id === 'ws-demo-astrix') {
+        await updateWorkspaceName(businessName.trim() || activeWorkspace.name);
+      } else {
+        await api.settings.save(user.id, { display_name: displayName, business_name: businessName, notification_preferences: preferences });
+        if (businessName.trim() && businessName.trim() !== activeWorkspace.name) await updateWorkspaceName(businessName);
+      }
+      addToast('Profile updated.', 'success');
+    } catch (error) {
+      addToast(error instanceof Error ? error.message : 'Could not save profile.', 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const saveNotifications = async (next: NotificationPreferences) => {
+    setPreferences(next);
+    if (!user || activeWorkspace?.id === 'ws-demo-astrix') return;
+    try {
+      await api.settings.save(user.id, { display_name: displayName, business_name: businessName, notification_preferences: next });
+      addToast('Notification preferences updated.', 'success');
+    } catch (error) {
+      addToast(error instanceof Error ? error.message : 'Could not save notification preferences.', 'error');
+    }
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -102,7 +159,7 @@ export const Settings = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-bold text-gray-900 mb-2">Full Name</label>
-                    <input type="text" defaultValue={fullName} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-blue transition-all" />
+                    <input type="text" value={displayName} onChange={event => setDisplayName(event.target.value)} disabled={isLoading} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-blue transition-all" />
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-900 mb-2">Email Address</label>
@@ -111,11 +168,11 @@ export const Settings = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-900 mb-2">Business Name</label>
-                  <input type="text" placeholder="e.g. Acme Design Studio" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-blue transition-all" />
+                  <input type="text" value={businessName} onChange={event => setBusinessName(event.target.value)} disabled={isLoading} placeholder="e.g. Acme Design Studio" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-blue transition-all" />
                 </div>
                 <div className="flex justify-end pt-4">
-                  <button onClick={() => addToast('Profile updated!', 'success')} className="bg-gray-900 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-black transition-colors shadow-sm">
-                    Save Changes
+                  <button onClick={saveProfile} disabled={isLoading || isSaving} className="bg-gray-900 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-black transition-colors shadow-sm disabled:opacity-50">
+                    {isSaving ? 'Saving...' : 'Save Changes'}
                   </button>
                 </div>
               </div>
@@ -170,12 +227,12 @@ export const Settings = () => {
               </div>
               <div className="p-6 space-y-4">
                 {[
-                  { label: 'Payment received alert', desc: 'Get notified instantly when a client pays via 1-Click Checkout.', checked: true },
-                  { label: 'AI Reminder sent confirmation', desc: 'Daily digest of emails the AI sent on your behalf.', checked: true },
-                  { label: 'Invoice dispute alert', desc: 'If a client replies to a reminder with a dispute or question.', checked: true },
-                  { label: 'Weekly recovery summary', desc: 'A Monday morning report of your metrics.', checked: false },
+                  { label: 'Payment received alert', desc: 'Get notified instantly when a client pays via 1-Click Checkout.', checked: preferences.payment_received },
+                  { label: 'AI Reminder sent confirmation', desc: 'Daily digest of emails the AI sent on your behalf.', checked: preferences.reminder_sent },
+                  { label: 'Invoice dispute alert', desc: 'If a client replies to a reminder with a dispute or question.', checked: preferences.invoice_dispute },
+                  { label: 'Weekly recovery summary', desc: 'A Monday morning report of your metrics.', checked: preferences.weekly_summary },
                 ].map((item, i) => (
-                  <div key={i} className="flex items-start justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors cursor-pointer group">
+                  <button key={i} type="button" onClick={() => void saveNotifications({ ...preferences, [(['payment_received', 'reminder_sent', 'invoice_dispute', 'weekly_summary'] as const)[i]]: !item.checked })} className="w-full flex items-start justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors cursor-pointer group text-left">
                     <div className="pr-4">
                       <h4 className="text-sm font-bold text-gray-900 group-hover:text-brand-blue transition-colors">{item.label}</h4>
                       <p className="text-xs text-gray-500 mt-1">{item.desc}</p>
@@ -185,7 +242,7 @@ export const Settings = () => {
                         <div className={`w-4 h-4 rounded-full bg-white transition-transform ${item.checked ? 'translate-x-4' : 'translate-x-0'}`}></div>
                       </div>
                     </div>
-                  </div>
+                    </button>
                 ))}
               </div>
             </div>

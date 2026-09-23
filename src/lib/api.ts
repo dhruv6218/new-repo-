@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Invoice, GatewaySettings, ToneSettings, ActivityItem, AdminUser,
-  Account, Signal, Problem, Opportunity, Decision, Artifact, Launch,
+  Account, Signal, Problem, Opportunity, Decision, Artifact, Launch, DashboardMetrics,
 } from '../types';
 import { createSupabaseBrowserClient } from './supabase/client';
 
@@ -55,6 +55,23 @@ type GatewayRow = {
 };
 type ToneRow = {
   workspace_id: string; settings: Record<string, unknown>; updated_at: string;
+};
+type ActivityRow = {
+  id: string;
+  event_type: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
+};
+export type NotificationPreferences = {
+  payment_received: boolean;
+  reminder_sent: boolean;
+  invoice_dispute: boolean;
+  weekly_summary: boolean;
+};
+export type ProfileSettings = {
+  display_name: string;
+  business_name: string;
+  notification_preferences: NotificationPreferences;
 };
 const mapSupabaseInvoice = (row: {
   id: string; workspace_id: string; client_name: string; client_email: string; currency: string;
@@ -339,8 +356,87 @@ export const api = {
   },
 
   activity: {
-    list: async (): Promise<ActivityItem[]> => {
+    list: async (wsId?: string): Promise<ActivityItem[]> => {
+      if (wsId && !isDemoWorkspace(wsId)) {
+        const { data, error } = await supabaseClient().from('activity_events').select('*').eq('workspace_id', wsId).order('created_at', { ascending: false }).limit(20);
+        if (error) throw new Error(error.message);
+        return (data as ActivityRow[] ?? []).map(row => {
+          const metadata = row.metadata;
+          return {
+            id: row.id,
+            type: (row.event_type === 'payment_received' ? 'payment_received' : row.event_type === 'reminder_sent' ? 'reminder_sent' : row.event_type === 'invoice_created' ? 'invoice_created' : 'ai_action') as ActivityItem['type'],
+            message: typeof metadata.message === 'string' ? metadata.message : row.event_type.replace(/_/g, ' '),
+            timestamp: row.created_at,
+            amount: typeof metadata.amount === 'number' ? metadata.amount : undefined,
+          };
+        });
+      }
       return getStorage<ActivityItem[]>(KEYS.ACTIVITY, []);
+    },
+  },
+
+  dashboard: {
+    get: async (wsId: string): Promise<{ metrics: DashboardMetrics; activities: ActivityItem[] }> => {
+      if (isDemoWorkspace(wsId)) {
+        const invoices = getStorage<Invoice[]>(KEYS.INVOICES, []).filter(i => i.workspace_id === wsId);
+        const recovered = invoices.filter(i => i.status === 'paid').reduce((sum, invoice) => sum + invoice.amount, 0);
+        const outstanding = invoices.filter(i => i.status !== 'paid').reduce((sum, invoice) => sum + invoice.amount, 0);
+        return {
+          metrics: {
+            total_recovered: recovered, currently_outstanding: outstanding,
+            active_chases: invoices.filter(i => i.status === 'pending').length,
+            recovery_rate: invoices.length ? Math.round((invoices.filter(i => i.status === 'paid').length / invoices.length) * 100) : 0,
+            pending_invoices: invoices.filter(i => i.status === 'pending').length,
+            this_month_recovered: recovered,
+          },
+          activities: getStorage<ActivityItem[]>(KEYS.ACTIVITY, []).slice(0, 20),
+        };
+      }
+      const [invoiceResult, activityResult] = await Promise.all([
+        supabaseClient().from('invoices').select('status,total_minor,created_at,paid_at').eq('workspace_id', wsId),
+        api.activity.list(wsId),
+      ]);
+      if (invoiceResult.error) throw new Error(invoiceResult.error.message);
+      const invoices = invoiceResult.data ?? [];
+      const paid = invoices.filter(invoice => invoice.status === 'paid');
+      const pending = invoices.filter(invoice => invoice.status === 'pending' || invoice.status === 'paused' || invoice.status === 'disputed');
+      const totalRecovered = paid.reduce((sum, invoice) => sum + Number(invoice.total_minor) / 100, 0);
+      return {
+        metrics: {
+          total_recovered: totalRecovered,
+          currently_outstanding: pending.reduce((sum, invoice) => sum + Number(invoice.total_minor) / 100, 0),
+          active_chases: invoices.filter(invoice => invoice.status === 'pending').length,
+          recovery_rate: invoices.length ? Math.round((paid.length / invoices.length) * 100) : 0,
+          pending_invoices: pending.length,
+          this_month_recovered: paid.filter(invoice => invoice.paid_at && new Date(invoice.paid_at).getMonth() === new Date().getMonth()).reduce((sum, invoice) => sum + Number(invoice.total_minor) / 100, 0),
+        },
+        activities: activityResult,
+      };
+    },
+  },
+
+  settings: {
+    get: async (userId: string): Promise<ProfileSettings> => {
+      const { data, error } = await supabaseClient().from('profiles').select('display_name,notification_preferences').eq('id', userId).single();
+      if (error) throw new Error(error.message);
+      const preferences = (data.notification_preferences ?? {}) as Partial<NotificationPreferences>;
+      return {
+        display_name: data.display_name ?? '',
+        business_name: '',
+        notification_preferences: {
+          payment_received: preferences.payment_received !== false,
+          reminder_sent: preferences.reminder_sent !== false,
+          invoice_dispute: preferences.invoice_dispute !== false,
+          weekly_summary: preferences.weekly_summary === true,
+        },
+      };
+    },
+    save: async (userId: string, settings: ProfileSettings): Promise<void> => {
+      const { error } = await supabaseClient().from('profiles').update({
+        display_name: settings.display_name.trim() || null,
+        notification_preferences: settings.notification_preferences,
+      }).eq('id', userId);
+      if (error) throw new Error(error.message);
     },
   },
 
