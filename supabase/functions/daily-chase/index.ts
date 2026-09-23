@@ -1,6 +1,11 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { isReminderEligible } from "./eligibility.ts";
 
+declare const Deno: {
+  env: { get(name: string): string | undefined };
+  serve(handler: (req: Request) => Promise<Response> | Response): void;
+};
+
 type Invoice = {
   id: string;
   workspace_id: string;
@@ -10,7 +15,11 @@ type Invoice = {
   currency: string;
   total_minor: number;
   reminder_count: number;
+  status: string;
   due_at: string | null;
+  paused_at?: string | null;
+  disputed_at?: string | null;
+  paid_at?: string | null;
   last_chased_at: string | null;
 };
 
@@ -199,7 +208,7 @@ Deno.serve(async (request: Request) => {
       `invoices?status=eq.pending&due_at=lte.${encodeURIComponent(now.toISOString())}` +
         `&paused_at=is.null&disputed_at=is.null&paid_at=is.null` +
         `&or=(last_chased_at.is.null,last_chased_at.lte.${encodeURIComponent(cutoff)})` +
-        `&select=id,workspace_id,invoice_number,client_name,client_email,currency,total_minor,reminder_count,due_at,last_chased_at`,
+        `&select=id,workspace_id,invoice_number,client_name,client_email,currency,total_minor,reminder_count,status,due_at,last_chased_at,paused_at,disputed_at,paid_at`,
     );
     if (!response.ok) throw new Error(`Invoice lookup failed with ${response.status}`);
 
@@ -207,6 +216,7 @@ Deno.serve(async (request: Request) => {
     const results = [];
     for (const invoice of invoices) {
       if (!isReminderEligible(invoice, now, intervalDays())) continue;
+      if (!invoice.due_at) continue;
       const kind = reminderKind(invoice.due_at, now);
       if (demo) {
         results.push({ invoice_id: invoice.id, kind, action: "preview" });
